@@ -1,3 +1,9 @@
 \chapter*{Sommario}
-Qui puoi inserire il sommario (la traduzione dell'abstract in italiano).
-\blindtext[2]
+Il presente lavoro di tesi illustra le attività di ricerca e sviluppo condotte durante il periodo di tirocinio presso \textbf{\textit{InfoCube}}, focalizzandosi sull'estrazione, strutturazione e interrogazione semantica avanzata di documenti legali e normativi. Il progetto si inserisce nel contesto più ampio di \textbf{\textit{LUDOVICA}} (\textit{Language Understanding for Document Optimization and Validation In Civil Administration}), un motore generativo basato sull'Intelligenza Artificiale volto a supportare la Pubblica Amministrazione Locale nell'elaborazione e stesura di atti amministrativi.
+
+Il problema tecnico principale affrontato in questo lavoro è la trasformazione di documenti PDF complessi in una base di conoscenza solida e interrogabile dalle macchine (\textbf{\textit{Knowledge Graph}}). A tale scopo, la rigida gerarchia tipica degli atti normativi (Titoli, Capi, Articoli, Commi) è stata modellata e salvata all'interno del database a grafo \textbf{\textit{Neo4j}}, permettendo di preservare fedelmente le relazioni strutturali e concettuali dei testi originali.
+
+Per abilitare il recupero intelligente e contestuale delle informazioni, è stato implementato un sistema di \textbf{\textit{Semantic Search}}. Questa fase ha richiesto uno studio approfondito e il testing di molteplici \textbf{\textit{modelli di embedding}}, allo scopo di individuare la soluzione più performante per la vettorializzazione del complesso gergo giuridico italiano. 
+Al fine di validare le scelte architetturali, è stato inoltre introdotto e impiegato il database vettoriale \textbf{\textit{Qdrant}} a scopo puramente sperimentale. Ciò ha permesso di condurre un'analisi comparativa diretta tra le performance di un approccio di ricerca puramente vettoriale e i vantaggi offerti dalla navigazione topologica nel grafo.
+
+I risultati di questo lavoro pongono solide basi per l'ottimizzazione del recupero dell'informazione in ambito legale, dimostrando l'efficacia di un \textbf{\textit{approccio ibrido}} che unisce la potenza della ricerca semantica alla precisione strutturale dei database a grafo.

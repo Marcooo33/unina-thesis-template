@@ -1,137 +1,53 @@
-\chapter{This is the first chapter}\label{chap:first}
+\chapter{Introduzione}\label{chap:first}
 
 \inlineminitoc
 
-\noindent In this chapter I'll show some of the features of the \texttt{uninathesis} documentclass.
+\section{Definizione del problema}
+Il lavoro di tesi si inserisce nel contesto delle attività di ricerca e sviluppo svolte presso InfoCube, un'azienda di consulenza informatica specializzata, tra le altre cose, in Intelligenza Artificiale.
+Nello specifico, il progetto ruota attorno a \textbf{LUDOVICA} (\textit{Language Understanding for Document Optimization and Validation In Civil Administration}), un motore generativo basato sull'IA progettato per la Pubblica Amministrazione Locale.
+L'obiettivo principale di LUDOVICA è fornire ai funzionari un sistema capace di elaborare richieste in linguaggio naturale, cercare atti pertinenti, e generare template di atti amministrativi pronti all'uso e modificabili.
 
-\section{Typography \& math}
-Some text here. \(\varphi,\phi,\psi\vDash M U k\)
-Here \texttt{true type}. 
-\textsc{here Small Caps}. 
-\textsf{here sans serif}. 
-\emph{here italics}.
-\textbf{\emph{here bold italics}}.
-\textbf{\textsf{bold sans}}.
-\textsf{\emph{Italic sans}}.
-Here we cite \citeauthor{dijkstra1972humbleprogrammer} and \citeauthor{lamport1982proving}
-who wrote \cite{dijkstra1972humbleprogrammer,lamport1982proving} respectively.
-\blindmathpaper
+Il problema tecnico fondamentale affrontato in questo tirocinio consiste nella \textbf{trasformazione di documenti legali in un formato strutturato e interrogabile dalle macchine, in modo da poter costruire un solido database a grafo (\textit{Knowledge Graph})}.
+Poiché gli atti normativi possiedono una gerarchia fissa e complessa (Titoli, Capi, Articoli, Commi), è cruciale che l'architettura dei dati rifletta questa struttura per permettere al sistema di risalire sempre al documento originale a partire da una singola porzione di testo.
 
-\section{TODOs}
-The \texttt{uninathesis} documentclass provides a basic todo functionality via 
-the \texttt{uninatodo} command \uninatodo{as i just did. This is a todo note.}. 
-
-\section{Lists}
-In this section you can see how lists look like.
-\subsection{Itemize}
-\blinditemize
-\subsection{Enumerate}
-\blindenumerate
-\subsection{Description}
-\blinddescription
-\subsection{Custom enumerate}
-\begin{enumerate}[label=(\roman*)]
-    \item foo;
-    \item bar;
-    \item foobar.
+A livello operativo, le attività di tirocinio si sono concentrate su tre task principali:
+\begin{enumerate}
+    \item Il \textbf{salvataggio dei documenti legali e delle loro gerarchie} sul database a grafo \textit{Neo4j}.
+    \item L'\textbf{implementazione della \textit{Semantic Search}}, affiancata al \textbf{testing di molteplici modelli di embedding} per valutarne le prestazioni e l'accuratezza delle risposte sul testo legale in lingua italiana.
+    \item L'\textbf{introduzione del database vettoriale} \textit{Qdrant}, impiegato unicamente a scopo di testing per poter effettuare un \textbf{confronto diretto delle performance} tra un approccio basato sulla sola ricerca vettoriale e quello topologico basato sui grafi.
 \end{enumerate}
-\subsection{Inline enumerate}
-You can also write inline enumerates as follows:
-\begin{enumerate*}[label=(\roman*)]
-    \item first item;
-    \item second item;
-    \item third and last item.
-\end{enumerate*}
 
-\section{Tables}
-Classic booktabs tables as in Table \ref{tab:table}. \blindtext
-\begin{table}
-    \begin{center}
-      \caption{Table using booktabs.}
-      \label{tab:table}
-      \begin{tabular}{llr}
-        \toprule % <-- Toprule here
-        \textbf{Value 1} & \textbf{Value 2} & \textbf{Value 3}\\
-        $\alpha$ & $\beta$ & $\gamma$ \\
-        \midrule % <-- Midrule here
-        1 & 1110.1 & a\\
-        2 & 10.1 & b\\
-        3 & 23.113231 & c\\
-        \bottomrule % <-- Bottomrule here
-      \end{tabular}
-    \end{center}
-\end{table}
+\section{Tecnologie utilizzate}
+Per far fronte alle sfide di estrazione, elaborazione, archiviazione e interrogazione dei documenti normativi, è stato impiegato uno stack tecnologico che combina strumenti di parsing avanzato, modelli di LLM ed embedding e database specializzati:
 
-\section{Algorithms}
-Algorithm environment is styled to be consistent with booktabs (same heading and bottomline). \blindtext[2]
-\begin{algorithm}
-    \caption{Box alignment procedure}\label{alg:padding}
-    \begin{algorithmic}[1]
-        \Statex \textbf{signature} $\textsc{BoxAlign}$ $CSA\times CSA \to CSA\times CSA$
-        \Statex \textbf{ensure} The returned CSA are box-compatible
-        \Function{$\textsc{BoxAlign}$}{$\mathscr{M},\mathscr{F}$}
-            % I cut a whole part of the algorithm; It doesn't make much sense now!
-            \State $(\mathscr{M}^\prime,\mathscr{F}^\prime)\gets(\mathscr{M},\mathscr{F})$
-            \ForAll{$(b_m,b_f)\in B_{\mathscr{M}^\prime}\times B_{\mathscr{F}^\prime}$}
-                \State $\left(\beta_{\mathscr{M}^\prime},\beta_{\mathscr{F}^\prime}\right)\gets(\varepsilon,\varepsilon)$
-                \For{$0\le i < |\beta_{\mathscr{M}^\prime}(b_m)|$} 
-                    \State $(\mathscr{A}_\mathscr{M},\mathscr{A}_\mathscr{F})\gets\textsc{BoxAlign}(\beta_{\mathscr{M}^\prime}(b_m)_i,\beta_{\mathscr{F}^\prime}(b_f)_i)$
-                    \State $\beta_{\mathscr{M}^\prime}(b_m)\gets\beta_{\mathscr{M}^\prime}\cdot\mathscr{A}_\mathscr{M}$
-                    \State $\beta_{\mathscr{F}^\prime}(b_f)\gets\beta_{\mathscr{F}^\prime}\cdot\mathscr{A}_\mathscr{F}$
-                \EndFor
-            \EndFor
-            \State \textbf{return} $(\mathscr{M}^\prime,\mathscr{F}^\prime)$
-        \EndFunction
-    \end{algorithmic}
-\end{algorithm}
+\subsection*{Database e Linguaggi di Interrogazione}
+\begin{itemize}
+    \item \textbf{Neo4j:} Il database a grafo principale utilizzato per mappare la rigida struttura gerarchica degli atti normativi e i nodi concettuali.
+Consente di gestire e navigare le relazioni in maniera altamente efficiente rispetto ai database relazionali tradizionali.
+    \item \textbf{Cypher:} Il linguaggio di interrogazione dichiarativo nativo di Neo4j, utilizzato per effettuare le query di inserimento (ingestion) e di ricerca topologica nel grafo.
+    \item \textbf{Qdrant:} Un database vettoriale utilizzato sperimentalmente per condurre test e confronti sulle performance della ricerca semantica (\textit{Cosine Similarity}) rispetto all'approccio basato sui grafi.
+\end{itemize}
 
+\subsection*{Linguaggi di Programmazione e Architettura Software}
+\begin{itemize}
+    \item \textbf{Python:} Scelto per la vastità e la potenza delle sue librerie, è stato il linguaggio cardine per la costruzione delle pipeline del mio progetto.
+    È stato impiegato applicando design pattern architetturali (\textit{Object-Oriented Programming, Strategy Pattern, Repository Pattern, Factory Pattern}).
+    \item \textbf{Docker:} L'intero ecosistema è stato containerizzato attraverso lo sviluppo di moduli isolati e specifici (es. \texttt{extract-from-pdf}, \texttt{db-ingestion}, \ldots{}) per ogni step della mia pipeline. Questa scelta ha garantito un'elevata modularità, l'isolamento delle dipendenze software e un rigoroso controllo sulle risorse computazionali, specialmente durante i task più onerosi legati all'\textbf{\textit{Optical Character Recognition (OCR)}} e alla \textbf{\textit{generazione degli Embedding}}.
+\end{itemize}
 
-\section{Listings}
-Listings provided by the lstlistings package. Example shown in Listing \ref{lst:code}. \blindtext[2]
-\begin{lstlisting}[language=Python,float,caption=Python example,label={lst:code},basicstyle=\ttfamily,frame=b,framextopmargin=.2ex]
-    import numpy as np
-     
-    def incmatrix(genl1,genl2):
-        m = len(genl1)
-        n = len(genl2)
-        M = None #to become the incidence matrix
-        VT = np.zeros((n*m,1), int)  #dummy variable
-     
-        #compute the bitwise xor matrix
-        M1 = bitxormatrix(genl1)
-        M2 = np.triu(bitxormatrix(genl2),1) 
-\end{lstlisting}
+\subsection*{Strumenti per l'Estrazione del Testo (PDF Parsing \& OCR)}
+\begin{itemize}
+    \item \textbf{Open Data Loader:} Una libreria fondamentale scelta per la sua capacità di eseguire estrazioni di testo \textit{deterministiche} da PDF complessi (\textit{Tagged PDF}), mantenendo l'ordine di lettura e la struttura ad albero originaria, convertendoli in Markdown.
+    \item \textbf{Docling:} Integrato come supporto a Open Data Loader all'interno di un sistema di ``Triage Processor'' personalizzato.
+    Viene invocato dinamicamente dallo script Python per elaborare le pagine etichettate come complesse o prive di un albero strutturale chiaro.
+    \item \textbf{Motori OCR:} Moduli impiegati per estrarre testo dai documenti derivanti da scansioni visive.
+    Tra i vari motori OCR disponibili, è stato optato l'uso di \textbf{RapidOCR}, che si è rivelato il compromesso più efficace per bilanciare i tempi di esecuzione e l'elevato consumo di RAM che portava al blocco dei container.
+\end{itemize}
 
-
-\section{Listings, Algorithm and Table: consistent styling}
-The section title and Figure \ref{fig:figure} are pretty self-explanatory.\Blindtext
-\begin{figure}\centering
-\begin{minipage}[t]{.3\textwidth}
-\begin{algorithm}[H]
-    \caption{Test}
-    \begin{algorithmic}[1]
-        \State $z\gets 1+1$
-        \State $z\gets 1+2$
-    \end{algorithmic}
-\end{algorithm}
-\end{minipage}\hfill
-\begin{minipage}[t]{.3\textwidth}%
-    \vspace{.7em}
-    \begin{lstlisting}[language=Python,caption=ex]
-    int foo;
-    foo=1;
-    \end{lstlisting}
-\end{minipage}\hfill%
-\begin{minipage}[t]{.3\textwidth}
-\begin{table}[H]
-    \begin{tabular}{ll}
-        \toprule
-        foo & bar \\
-        \midrule 
-        1 & 2 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-\end{minipage}
-\caption{Algorithm, code and table side by side}\label{fig:figure}
-\end{figure}
+\subsection*{LLM e Modelli di Embedding}
+\begin{itemize}
+    \item \textbf{Gemini 2.5-flash:} \textit{Large Language Model} utilizzato tramite API per il compito cruciale della strutturazione sintattica.
+    Riceveva in input il testo in formato Markdown estratto dai PDF e restituiva JSON formattati rigorosamente secondo uno schema predefinito, che rappresentavano la gerarchia dei documenti normativi (Titoli, Capi, Articoli, Commi) e i nodi concettuali.
+    \item \textbf{Framework Sentence-Transformers:} Libreria Python utilizzata per l'embedding locale del testo dei commi, al fine di permettere la ricerca semantica.
+    \item \textbf{Modelli di Embedding:} Sono stati testati svariati modelli per ottimizzare la vettorializzazione del testo legale in italiano. I test più approfonditi hanno coinvolto i seguenti modelli: \texttt{intfloat/multilingual-e5-large}, \texttt{google/gemini-embedding-001} e \texttt{BAAI/bge-m3-14b-1T}. La valutazione si è basata sulla capacità di recuperare commi pertinenti a partire da query in linguaggio naturale.
+\end{itemize}
