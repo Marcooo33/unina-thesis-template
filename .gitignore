@@ -12,3 +12,4 @@
 *.fls
 *latexmk
 .vscode
+.other-thesis-template
