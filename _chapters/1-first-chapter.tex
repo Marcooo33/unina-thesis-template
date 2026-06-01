@@ -14,11 +14,26 @@ A livello operativo, le attività di tirocinio si sono concentrate su tre task p
 \begin{enumerate}
     \item Il \textbf{salvataggio dei documenti legali e delle loro gerarchie} sul database a grafo \textit{Neo4j}.
     \item L'\textbf{implementazione della \textit{Semantic Search}}, affiancata al \textbf{testing di molteplici modelli di embedding} per valutarne le prestazioni e l'accuratezza delle risposte sul testo legale in lingua italiana.
-    \item L'\textbf{introduzione del database vettoriale} \textit{Qdrant}, impiegato unicamente a scopo di testing per poter effettuare un \textbf{confronto diretto delle performance} tra un approccio basato sulla sola ricerca vettoriale e quello topologico basato sui grafi.
+    \item L'\textbf{introduzione del database vettoriale\textit{Qdrant}}, impiegato unicamente a scopo di testing per poter effettuare un \textbf{confronto diretto delle performance} tra un approccio basato sulla sola ricerca vettoriale e quello topologico basato sui grafi.
 \end{enumerate}
 
 \section{Tecnologie utilizzate}
 Per far fronte alle sfide di estrazione, elaborazione, archiviazione e interrogazione dei documenti normativi, è stato impiegato uno stack tecnologico che combina strumenti di parsing avanzato, modelli di LLM ed embedding e database specializzati:
+
+\subsection*{Linguaggi di Programmazione}
+\begin{itemize}
+    \item \textbf{Python:} Scelto per la vastità e la potenza delle sue librerie, è stato il linguaggio cardine per la costruzione delle pipeline del progetto.
+\end{itemize}
+
+\subsection*{Strumenti per l'Estrazione del Testo}
+\begin{itemize}
+   \item \textbf{Open Data Loader:} Una libreria open-source scelta per la sua capacità di estrarre testo in modo \textit{deterministico} da file PDF, convertendolo direttamente in Markdown.
+    \item \textbf{Docling:} Una libreria open-source di parsing e analisi del layout documentale, specializzato nell'estrazione precisa di testo, tabelle e metadati strutturati a partire da formati complessi come i PDF. 
+    Nel contesto di questo lavoro, è stato integrato come supporto a Open Data Loader all'interno di un sistema di ``Triage Processor'' personalizzato. 
+    Viene invocato dinamicamente per elaborare in modo specifico le pagine etichettate come complesse, garantendo un'estrazione fedele delle informazioni legali.
+    \item \textbf{RapidOCR:} Modulo impiegato per estrarre testo dai documenti derivanti da scansioni visive.
+    Tra i vari motori OCR disponibili, è stato optato l'uso di questo specifico OCR che si è rivelato il compromesso più efficace per bilanciare i tempi di esecuzione e l'elevato consumo di RAM del container.
+\end{itemize}
 
 \subsection*{Database e Linguaggi di Interrogazione}
 \begin{itemize}
@@ -28,26 +43,15 @@ Consente di gestire e navigare le relazioni in maniera altamente efficiente risp
     \item \textbf{Qdrant:} Un database vettoriale utilizzato sperimentalmente per condurre test e confronti sulle performance della ricerca semantica (\textit{Cosine Similarity}) rispetto all'approccio basato sui grafi.
 \end{itemize}
 
-\subsection*{Linguaggi di Programmazione e Architettura Software}
-\begin{itemize}
-    \item \textbf{Python:} Scelto per la vastità e la potenza delle sue librerie, è stato il linguaggio cardine per la costruzione delle pipeline del mio progetto.
-    È stato impiegato applicando design pattern architetturali (\textit{Object-Oriented Programming, Strategy Pattern, Repository Pattern, Factory Pattern}).
-    \item \textbf{Docker:} L'intero ecosistema è stato containerizzato attraverso lo sviluppo di moduli isolati e specifici (es. \texttt{extract-from-pdf}, \texttt{db-ingestion}, \ldots{}) per ogni step della mia pipeline. Questa scelta ha garantito un'elevata modularità, l'isolamento delle dipendenze software e un rigoroso controllo sulle risorse computazionali, specialmente durante i task più onerosi legati all'\textbf{\textit{Optical Character Recognition (OCR)}} e alla \textbf{\textit{generazione degli Embedding}}.
-\end{itemize}
-
-\subsection*{Strumenti per l'Estrazione del Testo (PDF Parsing \& OCR)}
-\begin{itemize}
-    \item \textbf{Open Data Loader:} Una libreria fondamentale scelta per la sua capacità di eseguire estrazioni di testo \textit{deterministiche} da PDF complessi (\textit{Tagged PDF}), mantenendo l'ordine di lettura e la struttura ad albero originaria, convertendoli in Markdown.
-    \item \textbf{Docling:} Integrato come supporto a Open Data Loader all'interno di un sistema di ``Triage Processor'' personalizzato.
-    Viene invocato dinamicamente dallo script Python per elaborare le pagine etichettate come complesse o prive di un albero strutturale chiaro.
-    \item \textbf{Motori OCR:} Moduli impiegati per estrarre testo dai documenti derivanti da scansioni visive.
-    Tra i vari motori OCR disponibili, è stato optato l'uso di \textbf{RapidOCR}, che si è rivelato il compromesso più efficace per bilanciare i tempi di esecuzione e l'elevato consumo di RAM che portava al blocco dei container.
-\end{itemize}
-
 \subsection*{LLM e Modelli di Embedding}
 \begin{itemize}
     \item \textbf{Gemini 2.5-flash:} \textit{Large Language Model} utilizzato tramite API per il compito cruciale della strutturazione sintattica.
-    Riceveva in input il testo in formato Markdown estratto dai PDF e restituiva JSON formattati rigorosamente secondo uno schema predefinito, che rappresentavano la gerarchia dei documenti normativi (Titoli, Capi, Articoli, Commi) e i nodi concettuali.
-    \item \textbf{Framework Sentence-Transformers:} Libreria Python utilizzata per l'embedding locale del testo dei commi, al fine di permettere la ricerca semantica.
+    Riceveva in input il testo in formato Markdown dai PDF e restituiva JSON formattati rigorosamente secondo uno schema predefinito, che rappresentavano la gerarchia dei documenti normativi (Titoli, Capi, Articoli, Commi) e i nodi concettuali.
     \item \textbf{Modelli di Embedding:} Sono stati testati svariati modelli per ottimizzare la vettorializzazione del testo legale in italiano. I test più approfonditi hanno coinvolto i seguenti modelli: \texttt{intfloat/multilingual-e5-large}, \texttt{google/gemini-embedding-001} e \texttt{BAAI/bge-m3-14b-1T}. La valutazione si è basata sulla capacità di recuperare commi pertinenti a partire da query in linguaggio naturale.
+\end{itemize}
+
+
+\subsection*{Deployment e Containerizzazione}
+\begin{itemize}
+    \item \textbf{Docker:} L'intero ecosistema è stato modularizzato attraverso lo sviluppo di container isolati e specifici (es. \texttt{extract-from-pdf}, \texttt{db-ingestion}, \ldots{}). Questa scelta ha garantito un'elevata modularità, l'isolamento delle dipendenze software e un rigoroso controllo sulle risorse computazionali, specialmente durante i task più onerosi legati all'\textbf{\textit{Optical Character Recognition (OCR)}} e alla \textbf{\textit{generazione degli Embedding}}.
 \end{itemize}
