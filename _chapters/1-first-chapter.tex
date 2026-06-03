@@ -28,9 +28,7 @@ Per far fronte alle sfide di estrazione, elaborazione, archiviazione e interroga
 \subsection*{Strumenti per l'Estrazione del Testo}
 \begin{itemize}
    \item \textbf{Open Data Loader:} Una libreria open-source scelta per la sua capacità di estrarre testo in modo \textit{deterministico} da file PDF, convertendolo direttamente in Markdown.
-    \item \textbf{Docling:} Una libreria open-source di parsing e analisi del layout documentale, specializzato nell'estrazione precisa di testo, tabelle e metadati strutturati a partire da formati complessi come i PDF. 
-    Nel contesto di questo lavoro, è stato integrato come supporto a Open Data Loader all'interno di un sistema di ``Triage Processor'' personalizzato. 
-    Viene invocato dinamicamente per elaborare in modo specifico le pagine etichettate come complesse, garantendo un'estrazione fedele delle informazioni legali.
+    \item \textbf{Docling:} Una libreria open-source di parsing e analisi del layout documentale, specializzato nell'estrazione precisa di testo, tabelle e metadati strutturati a partire da formati complessi come i PDF. Integrato come supporto di Open Data Loader.
     \item \textbf{RapidOCR:} Modulo impiegato per estrarre testo dai documenti derivanti da scansioni visive.
     Tra i vari motori OCR disponibili, è stato optato l'uso di questo specifico OCR che si è rivelato il compromesso più efficace per bilanciare i tempi di esecuzione e l'elevato consumo di RAM del container.
 \end{itemize}
@@ -47,7 +45,7 @@ Consente di gestire e navigare le relazioni in maniera altamente efficiente risp
 \begin{itemize}
     \item \textbf{Gemini 2.5-flash:} \textit{Large Language Model} utilizzato tramite API per il compito cruciale della strutturazione sintattica.
     Riceveva in input il testo in formato Markdown dai PDF e restituiva JSON formattati rigorosamente secondo uno schema predefinito, che rappresentavano la gerarchia dei documenti normativi (Titoli, Capi, Articoli, Commi) e i nodi concettuali.
-    \item \textbf{Modelli di Embedding:} Sono stati testati svariati modelli per ottimizzare la vettorializzazione del testo legale in italiano. I test più approfonditi hanno coinvolto i seguenti modelli: \texttt{intfloat/multilingual-e5-large}, \texttt{google/gemini-embedding-001} e \texttt{BAAI/bge-m3-14b-1T}. La valutazione si è basata sulla capacità di recuperare commi pertinenti a partire da query in linguaggio naturale.
+    \item \textbf{Modelli di Embedding:} Sono stati testati svariati modelli per ottimizzare la vettorializzazione del testo legale in italiano. I test più approfonditi hanno coinvolto i seguenti modelli: \texttt{intfloat/multilingual-e5-large}, \texttt{google/gemini-embedding-001} e \texttt{BAAI/bge-m3}. La valutazione si è basata sulla capacità di recuperare commi pertinenti a partire da query in linguaggio naturale.
 \end{itemize}
 
 
