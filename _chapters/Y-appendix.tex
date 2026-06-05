@@ -1,17 +1,157 @@
-%appendix title style
 \titleformat{\chapter}[block]{\Huge\bfseries}{
-    \sffamily\huge\centering{Appendix \thechapter
+    \sffamily\huge\centering{Appendice \thechapter
 }\\}{1ex}{\sffamily\centering\huge\bfseries}
 
 \newpage\pagestyle{appendices}
 \begin{appendices}
 
-\chapter{This is an appendix}\label{appendix}
-\section{Appendix section}
-\Blindtext
-\section{Appendix section}
-\Blindtext
+\chapter{Codice Sorgente}\label{app:codice_sorgente}
 
-%now another appendix
-\blinddocument
+In questa appendice viene riportato il codice sorgente in linguaggio Python relativo allo step di estrazione dei documenti PDF, con particolare focus sull'implementazione del \textit{Custom Triage Processor}. Il sistema è stato progettato adottando lo \textit{Strategy Pattern}, che permette di definire una famiglia di algoritmi, incapsularli e renderli intercambiabili in base alla natura del documento analizzato.
+
+\section{Interfaccia Base}
+Il file \texttt{base.py} definisce l'interfaccia astratta che tutte le strategie di elaborazione dei PDF devono implementare.
+
+\begin{lstlisting}[language=Python, breaklines=true, escapeinside={}, caption={Interfaccia base per le strategie}, label={lst:base_strategy}]
+class PDFProcessingStrategy(ABC):
+    @abstractmethod
+    def process(self, pdf_file: Path, reader: PdfReader, temp_export_path: Path) -> str:
+        pass
+\end{lstlisting}
+
+\section{Implementazione delle Strategie}
+
+\subsection{Strategia per Tagged PDF}
+Il file \texttt{tagged\_strategy.py} implementa la strategia per i documenti nativamente strutturati.
+
+\begin{lstlisting}[language=Python, breaklines=true, escapeinside={}, caption={Strategia per PDF strutturati}, label={lst:tagged_strategy}]
+class TaggedPDFStrategy(PDFProcessingStrategy):
+    def process(self, pdf_file: Path, reader: PdfReader, temp_export_path: Path) -> str:
+        final_markdown = ""
+        convert_args = {
+            "input_path": [str(pdf_file)],
+            "output_dir": str(temp_export_path),
+            "format": ["markdown"],
+            "use_struct_tree": True,
+            "hybrid_mode": "auto"
+        }
+        
+        try:
+            opendataloader_pdf.convert(**convert_args)
+            for temp_md_file in temp_export_path.glob("*.md"):
+                with open(temp_md_file, "r", encoding="utf-8") as f:
+                    final_markdown += f.read()
+                temp_md_file.unlink()
+        except Exception as e:
+            logger.error(f"Errore durante l'estrazione di {pdf_file.name}: {e}")
+        
+        return final_markdown
+\end{lstlisting}
+
+\subsection{Custom Triage Processor}
+Il file \texttt{triage\_strategy.py} contiene il core della logica di smistamento intelligente delle singole pagine.
+
+\begin{lstlisting}[language=Python, breaklines=true, escapeinside={}, caption={Implementazione del Custom Triage Processor}, label={lst:triage_strategy}]
+class TriagePDFStrategy(PDFProcessingStrategy):
+    STRATEGY_MAP = {
+        PageType.SIMPLE: {"hybrid_mode": "auto"},
+        PageType.COMPLEX: {"hybrid_mode": "full", "hybrid": "docling-fast", "hybrid_url": URL_DOCLING_NO_OCR},
+        PageType.SCAN: {"hybrid_mode": "full", "hybrid": "docling-fast", "hybrid_url": URL_DOCLING_OCR}
+    }
+
+    def process(self, pdf_file: Path, reader: PdfReader, temp_export_path: Path) -> str:
+        final_markdown = ""
+
+        for i, page in enumerate(reader.pages):
+            page_strategy = self._analyze_page_type(page)
+            
+            temp_pdf_path = temp_export_path / f"temp_p{i}.pdf"
+            with open(temp_pdf_path, "wb") as f:
+                writer = PdfWriter()
+                writer.add_page(page)
+                writer.write(f)
+
+            convert_args = {
+                "input_path": [str(temp_pdf_path)],
+                "output_dir": str(temp_export_path),
+                "format": ["markdown"],
+                "use_struct_tree": False
+            }
+
+            convert_args.update(self.STRATEGY_MAP.get(page_strategy, self.STRATEGY_MAP[PageType.SIMPLE]))
+
+            try:
+                opendataloader_pdf.convert(**convert_args)
+                for temp_md_file in temp_export_path.glob("*.md"):
+                    with open(temp_md_file, "r", encoding="utf-8") as f:
+                        final_markdown += f.read() + "\n\n---\n\n"
+                    temp_md_file.unlink()
+            except Exception as e:
+                logger.error(f"Errore critico pagina {i+1} di {pdf_file.name}: {e}")
+            finally:
+                if temp_pdf_path.exists():
+                    temp_pdf_path.unlink()
+                
+        return final_markdown
+
+    def _analyze_page_type(self, page) -> PageType:
+        text = page.extract_text() or ""
+        has_images = len(page.images) > 0 if hasattr(page, 'images') else False
+
+        if len(text.strip()) < 50 and has_images:
+            return PageType.SCAN
+        if has_images or len(text.strip()) > 2500:
+            return PageType.COMPLEX
+
+        return PageType.SIMPLE
+\end{lstlisting}
+
+\section{Logica di Selezione della Strategia}
+Il file \texttt{utils.py} funge da \textit{Factory} per il pattern architetturale scelto: analizza i metadati del documento per verificare la presenza di un albero strutturale e istanzia dinamicamente la strategia di elaborazione più adeguata.
+
+\begin{lstlisting}[language=Python, breaklines=true, escapeinside={}, caption={Factory per la selezione della strategia}, label={lst:utils}]
+def get_pdf_strategy(pdf_reader) -> PDFProcessingStrategy:
+    if is_pdf_tagged(pdf_reader):
+        return TaggedPDFStrategy()
+    return TriagePDFStrategy()
+
+
+    
+def is_pdf_tagged(reader: PdfReader) -> bool:
+    try:
+        return "/StructTreeRoot" in reader.trailer["/Root"]
+    except Exception:
+        return False
+\end{lstlisting}
+
+\section{Esecuzione Principale}
+Infine, lo script \texttt{main.py} coordina il processo, determinando quale strategia applicare.
+
+\begin{lstlisting}[language=Python, breaklines=true, escapeinside={}, caption={Script principale di esecuzione}, label={lst:main}]
+def main():
+    setup_logging(LOG_DIR)
+    logger = logging.getLogger(__name__)
+    
+    for path in [INPUT_PDF_DIR, BASE_MD_PATH, TEMP_EXPORT_PATH]:
+        path.mkdir(parents=True, exist_ok=True)
+
+    for pdf_file in INPUT_PDF_DIR.iterdir():                    
+        try:
+            pdfReader = PdfReader(pdf_file)
+            pdf_extraction_strategy = get_pdf_strategy(pdfReader)
+            
+            markdown = pdf_extraction_strategy.process(pdf_file, pdfReader, TEMP_EXPORT_PATH)
+
+            with open(BASE_MD_PATH / f"{pdf_file.stem}.md", "w", encoding="utf-8") as f:
+                f.write(markdown)
+        except Exception as e:
+            logger.error(f"Errore su {pdf_file.name}: {e}")
+
+    if TEMP_EXPORT_PATH.exists():
+        shutil.rmtree(TEMP_EXPORT_PATH)
+
+if __name__ == "__main__":
+    main()
+\end{lstlisting}
+
 \end{appendices}

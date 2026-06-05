@@ -316,7 +316,7 @@
         %\small
         %\scriptsize
         \footnotesize
-        \etocsetnexttocdepth{2}
+        \etocsetnexttocdepth{1}
         %\etocsettocstyle{\subsubsection*{Local contents}}{}
         \etocsettocstyle{}{}
         \etocsetstyle{section} %name of sectional unit
