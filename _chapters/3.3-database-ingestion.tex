@@ -31,10 +31,13 @@ Nel sistema sviluppato, l'interfaccia astratta di riferimento è rappresentata d
 Nello script principale \texttt{main.py}, il ciclo di esecuzione batch istanzia dinamicamente l'oggetto concreto (\texttt{Neo4jImporter} o \texttt{QdrantImporter}) a seconda della configurazione desiderata. La funzione \texttt{process\_documents} riceve l'istanza polimorfica tramite la \textit{Dependency Injection} ed esegue il parsing e l'ingestion dei file JSON senza curarsi di quale sia il database di destinazione. Questa architettura estendibile riduce a zero l'accoppiamento e semplifica future implementazioni con ulteriori database.
 
 
-\subsection{Modularità dell'Accesso ai Dati: Il Repository Pattern}
+\subsection{Modalità di Accesso ai Dati: Il Repository Pattern}
 Se lo \textit{Strategy Pattern} isola i database nella loro interezza rispetto all'orchestrazione principale, il \textit{Repository Pattern} interviene specificamente all'interno dell'architettura di persistenza dei database per mediare tra lo strato dei modelli di dominio e lo strato di accesso ai dati fisici. 
+L'obiettivo principale del Repository Pattern è centralizzare la logica di costruzione ed esecuzione delle query, offrendo al client un'interfaccia astratta per poter salvare i dati nei database.
+In questo modo, l'importer concreto delega l'interazione fisica con il database ai singoli repository, i quali ricevono l'oggetto di dominio da persistere, nascondendo completamente i dettagli delle implementazioni delle query.
 
-L'obiettivo principale del Repository Pattern è centralizzare la logica di costruzione ed esecuzione delle query, offrendo al client un'interfaccia astratta simile a quella di una collezione di oggetti in memoria. Nel contesto di Neo4j, un atto legale non può essere salvato tramite un'unica operazione atomica standard, a causa delle profonde interconnessioni tra i nodi della gerarchia. Anziché concentrare la scrittura di stringhe Cypher complesse all'interno della classe \texttt{Neo4jImporter}, la responsabilità è stata distribuita su una serie di repository specializzati, ognuno deputato alla gestione del ciclo di vita di un singolo modello di dominio:
+\subsection{Dettagli Implementativi dell'Ingestione su Neo4j}
+Nel contesto di Neo4j, un atto legale non può essere salvato tramite un'unica operazione atomica standard, a causa delle profonde interconnessioni tra i nodi della gerarchia. Anziché concentrare la scrittura di stringhe Cypher complesse all'interno della classe \texttt{Neo4jImporter}, la responsabilità è stata distribuita su una serie di repository specializzati, ognuno deputato alla gestione del ciclo di vita di un singolo modello di dominio:
 \begin{itemize}
     \item \texttt{EntityRepository}: Gestisce l'inserimento e l'indicizzazione dei nodi relativi agli enti istituzionali.
     \item \texttt{LegalActRepository}: Inserisce il nodo radice dell'atto e lo ancora all'ente emittente.
@@ -42,23 +45,43 @@ L'obiettivo principale del Repository Pattern è centralizzare la logica di cost
     \item \texttt{ParagraphRepository}: Si occupa esclusivamente della persistenza dei nodi foglia contenenti il testo dei commi.
 \end{itemize}
 
-In questo modo, l'importer concreto delega l'interazione fisica con il database ai singoli repository, i quali ricevono il contesto transazionale attivo e l'oggetto di dominio da persistere, nascondendo completamente i dettagli del linguaggio Cypher al resto dell'applicazione.
+Per quanto riguarda il salvataggio delle relazioni trasversali (ad esempio, le citazioni tra diversi atti normativi), queste informazioni vengono lette da file JSON esterni dedicati.
 
-\subsection{Dettagli Implementativi dell'Ingestione su Neo4j}
-L'implementazione racchiusa in \texttt{Neo4jImporter} si concentra sulla fedele ricostruzione topologica e gerarchica del documento all'interno del grafo. Per garantire l'integrità transazionale e prevenire stati inconsistenti dovuti a fallimenti parziali della rete o del backend, il caricamento di ogni singolo documento viene eseguito all'interno di un'unica transazione ACID esplicita.
+\begin{lstlisting}[caption={Esempio di relazione CITES estratta in formato JSON}, label={lst:json-cites}, belowskip=0pt, breaklines=true]
+{
+  "sourceId": "ente-provincia-taranto__regolamento-iscrizione-elenco-speciale-associazioni-e-organismi-senza-scopo-di-lucro__article-3__paragraph-1",
+  "relationshipType": "CITES",
+  "targetId": "ente-provincia-taranto__regolamento-iscrizione-elenco-speciale-associazioni-e-organismi-senza-scopo-di-lucro__article-2"
+}
+\end{lstlisting}
 
-All'interno della funzione transazionale di lavoro, viene orchestrato un flusso sequenziale:
-\begin{enumerate}
-    \item Viene invocato l'\texttt{EntityRepository} per assicurare la presenza del nodo dell'ente nel grafo.
-    \item Il \texttt{LegalActRepository} crea il nodo radice del documento normativo, collegandolo all'ente tramite una relazione orientata.
-    \item L'importer itera sulla lista lineare degli elementi strutturali pre-ordinati estratti dal modello (\texttt{legal\_act.elements}). In questa fase si applica il polimorfismo a runtime: tramite costrutti di introspezione (\texttt{isinstance}), il sistema smista l'elemento al repository corretto. Se l'oggetto è un'istanza di \texttt{StructuralElement} viene invocato lo \texttt{struct\_repo}, mentre se si tratta di un \texttt{Paragraph} interviene il \texttt{par\_repo}. Ciascuna chiamata riceve l'identificativo del nodo padre (\texttt{parent\_id}) e la tipologia di arco (\texttt{relation\_type}), consentendo di generare relazioni stabili come \texttt{HAS\_CHAPTER} o \texttt{HAS\_PARAGRAPH}.
-\end{enumerate}
-
-Per qunato riguarda l'ingestione delle relazioni trasversali (es. citazioni ad altri articoli), queste relazioni vengono lette da file JSON esterni dedicati. 
-Il metodo \texttt{import\_relationships} esegue una seconda passata sul grafo in cui, per ogni link estratto, esegue una query Cypher che sfruttando l'indicizzazione sul \texttt{custom\_id}, individua istantaneamente i due nodi (sorgente e destinazione) e traccia l'arco semantico specifico.
+Il metodo \texttt{import\_relationships} esegue di fatto una seconda passata sul grafo e per ogni collegamento estratto dal JSON, l'algoritmo esegue una query Cypher dedicata procedendo alla creazione dell'arco semantico. Inoltre sfruttando l'indicizzazione definita sulla proprietà \texttt{custom\_id}, il motore di Neo4j individua i nodi con tempi di ricerca estremamente ridotti.
 
 \subsection{Dettagli Implementativi dell'Ingestione su Qdrant}
-La strategia implementata nella classe \texttt{QdrantImporter} risponde a logiche radicalmente differenti, dettate dai vincoli operativi dei database vettoriali e dalle necessità algoritmiche della ricerca semantica (\textit{Semantic Search}). Qdrant non supporta nativamente strutture gerarchiche ramificate, ma organizza le informazioni in collezioni piatte di vettori denominati \textit{Points}.
+La strategia implementata nella classe \texttt{QdrantImporter} risponde a logiche radicalmente differenti rispetto a quelle dei database a grafo, dettate dai vincoli operativi dei database vettoriali e dalle necessità algoritmiche della ricerca semantica. Qdrant, infatti, non supporta nativamente strutture gerarchiche ramificate, ma organizza le informazioni in collezioni di vettori piatti denominati \textit{Points}.
 
-Il fulcro del processo di ingestion in Qdrant risiede nell'operazione di appiattimento della struttura ad albero dell'atto normativo. L'unità fondamentale di indicizzazione viene identificata nel modello \texttt{Paragraph}, in quanto porzione di testo ottimale per bilanciare la granularità informativa e la focalizzazione semantica del modello di embedding. Tuttavia, memorizzare un comma in modo isolato causerebbe una perdita critica di contesto.
-Per risolvere questo problema, l'algoritmo esegue una procedura di \textit{tree-climbing} in memoria per ciascun paragrafo: partendo dall'elemento foglia, risale ricorsivamente la catena dei nodi padri, durante la risalita, estrae il numero e il titolo di ogni livello gerarchico attraversato (Articolo, Capitolo, Titolo) e tutte queste informazioni vengono aggregate e inserite all'interno del dizionario di metadati del punto vettoriale, denominato \textit{Payload}. Il payload risultante conterrà quindi l'identificativo univoco, il testo del comma e l'intero cammino strutturale di provenienza.
+Il fulcro del processo di ingestion in Qdrant risiede nell'operazione di appiattimento (\textit{flattening}) della struttura ad albero dell'atto normativo, la quale è stata configurata secondo tre fasi logiche:
+
+\begin{itemize}
+    \item \textbf{Identificazione dell'unità fondamentale:} L'unità minima di indicizzazione viene individuata nel modello \texttt{Paragraph} (il singolo comma). Questa porzione di testo rappresenta il compromesso ottimale per bilanciare la granularità informativa e la focalizzazione semantica del modello di embedding.
+    \item \textbf{Il problema del contesto assoluto:} Memorizzare un comma in modo isolato causerebbe una perdita critica di contesto, rendendo impossibile determinare a quale articolo o sezione appartenga il testo recuperato.
+    \item \textbf{Risoluzione tramite \textit{Tree-Climbing}:} Per preservare l'integrità strutturale, l'algoritmo esegue una procedura di risalita in memoria per ciascun paragrafo. Partendo dall'elemento foglia (il comma), risale ricorsivamente la catena dei nodi padri, estraendo il numero e il titolo di ogni livello gerarchico attraversato (Articolo, Capo, Titolo).
+\end{itemize}
+Tutte le informazioni così raccolte vengono infine aggregate e inserite all'interno del dizionario di metadati del punto vettoriale, denominato \textbf{\textit{Payload}}
+
+\begin{lstlisting}[language=json, caption={Esempio reale di un Point vettoriale su Qdrant con Payload}, label={lst:qdrant-payload}, breaklines=true]
+{
+  "id": "00020dff-edff-51b8-b2fb-a953ed7e5c0e",
+  "payload": {
+    "p_id": "ente-provincia-taranto__regolamento-area-delle-posizioni-organizzative-e-delle-alte-professionalita__chapter-2__article-14__paragraph-1",
+    "text": "Il presente Regolamento entrera in vigore ad avvenuta pubblicazione del medesimo all'Albo Pretorio on-line nonche sul sito web ufficiale dell'Ente.",
+    "paragraph_num": "1",
+    "act_name": "Regolamento Area delle Posizioni Organizzative e delle Alte Professionalita.json",
+    "article_num": "14",
+    "article_name": "Entrata in vigore",
+    "chapter_num": "2",
+    "chapter_name": "Area delle Alte Professionalita"
+  },
+  "vector": [/* Rappresentazione numerica dell'embedding testuale */]
+}
+\end{lstlisting}
