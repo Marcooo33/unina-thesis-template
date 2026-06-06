@@ -1,0 +1,47 @@
+\section{Creazione degli Embedding}
+\label{sec:creazione_embedding}
+
+L'operazione di vettorizzazione, o creazione degli \textit{embedding}, rappresenta un passaggio cruciale per abilitare le funzionalità di ricerca semantica sui documenti legali all'interno del sistema.
+
+\subsection{Astrazione e Gestione dei Modelli di Embedding}
+Per garantire la massima flessibilità nell'uso di modelli eterogenei, è stata definita un'interfaccia astratta base denominata \texttt{EmbeddingModel}. Da essa derivano le implementazioni specifiche per le diverse tipologie di erogazione dei modelli:
+
+\begin{itemize}
+    \item \textbf{Modelli Locali (\texttt{LocalEmbeddingModel}):} consentono l'esecuzione di modelli open-source direttamente in locale sfruttando la libreria \texttt{SentenceTransformer}. I modelli vengono salvati in una cache locale per ottimizzare i caricamenti successivi.
+    \item \textbf{Modelli Cloud HuggingFace (\texttt{HuggingFaceCloudModel}):} si interfacciano con la \textit{HuggingFace Inference API}. Per garantire la resilienza del sistema, la classe implementa un meccanismo di tolleranza ai guasti basato su tentativi multipli in caso di errore di rete o di superamento dei limiti di utilizzo, con attese esponenziali tra i tentativi.
+    \item \textbf{Modelli Cloud Gemini (\texttt{GeminiCloudModel}):} comunicano tramite l'endpoint REST \texttt{embedContent} di Google. Anche qui è stato implementato il meccanismo di retry e, inoltre, per ottimizzare ulteriormente il throughput, viene utilizzata una strategia di rotazione circolare su un pool di API keys fornite in configurazione.
+\end{itemize}
+
+In particolare, sono stati integrati quattro specifici modelli di embedding per verificare le differenze prestazionali e di accuratezza in fase di retrieval:
+
+\begin{itemize}
+    \item \textbf{\texttt{google/embeddinggemma-300m}:} Si tratta dell'unico modello della suite eseguito interamente in locale sfruttando le risorse hardware della macchina tramite la libreria \texttt{SentenceTransformer}. Produce vettori con una dimensionalità di 768.
+    
+    \item \textbf{\texttt{intfloat/multilingual-e5-large}:} Modello ad alte prestazioni fruibile in cloud tramite le \textit{HuggingFace Inference API}. Caratterizzato da una dimensionalità di 1024 vettori, questo modello richiede obbligatoriamente un pre-processing del testo tramite prefissi asimmetrici per ottimizzare le prestazioni di recupero: nello specifico, viene anteposto il token \texttt{"passage: "} per i testi da memorizzare e il token \texttt{"query: "} per le stringhe di ricerca.
+    
+    \item \textbf{\texttt{BAAI/bge-m3}:} Modello cloud multilingua integrato anch'esso tramite l'infrastruttura di \textit{HuggingFace}. Genera vettori a 1024 dimensioni ed è particolarmente rinomato per la sua versatilità nel mappare relazioni semantiche complesse in contesti cross-lingua e multi-lingua.
+    
+    \item \textbf{\texttt{gemini/gemini-embedding-001}:} Modello cloud proprietario di Google accessibile mediante l'endpoint REST \texttt{embedContent}. Configurato con una dimensionalità di 768 vettori, è nativamente ottimizzato per task di \textit{text retrieval} su larga scala.
+\end{itemize}
+
+\subsection{Integrazione con i Database di Memorizzazione}
+La distribuzione dei vettori generati ai diversi database di memorizzazione viene gestita, anche qui, attraverso lo \textit{Strategy Pattern}, che isola le logiche di inserimento dei dati per ciascun database. 
+
+Un aspetto cruciale condiviso da entrambe le strategie è l'\textbf{arricchimento contestuale del testo}. Al fine di massimizzare l'accuratezza della ricerca semantica, il sistema non si limita a generare l'embedding del solo testo grezzo del comma. Al contrario, il testo viene dinamicamente concatenato con i suoi metadati gerarchici e descrittivi (come il nome dell'atto normativo, il numero e il titolo del capitolo, e il numero e la rubrica dell'articolo).
+
+\subsubsection{La Strategia Neo4j}
+La \texttt{Neo4jEmbeddingStrategy} gestisce l'estrazione, la vettorizzazione e il salvataggio degli embedding nel database a grafo. Il processo si articola in tre fasi principali:
+
+\begin{enumerate}
+    \item \textbf{Estrazione e arricchimento contestuale:} Il sistema esegue una query Cypher (\texttt{FETCH\_QUERY}) che risale la gerarchia del documento a partire dal testo del nodo \texttt{:Paragraph}. La query estrae i metadati dei nodi padre (Atto, Titolo, Capo, Articolo) e li concatena al contenuto del paragrafo, generando una stringa arricchita e contestualizzata.
+    \item \textbf{Generazione degli embedding:} Il testo completo viene inviato ai modelli di \textit{embedding}. I modelli processano e traducono il testo in vettori numerici, catturando così sia il significato letterale del testo sia le dipendenze semantiche legate alla sua esatta collocazione nella legge.
+    \item \textbf{Salvataggio nel database:} Infine, i vettori generati vengono salvati nel grafo. Viene creato un nuovo nodo dedicato assegnandogli due \textit{label}: una generica (\texttt{:Embedding}) e una dinamica, specifica per il modello utilizzato (es. \texttt{:Embedding\_embeddinggemma\_300m}). Questo nodo memorizza il vettore generato (\texttt{vector}) e i dettagli del modello. Il processo si conclude creando una relazione \texttt{[:HAS\_EMBEDDING]} che connette il nodo \texttt{:Paragraph} originario al suo rispettivo nodo \textit{:Embedding}.
+\end{enumerate}
+
+\subsubsection{La Strategia Qdrant}
+La classe \texttt{QdrantEmbeddingStrategy} verifica a runtime lo schema della collezione, inizializzandone, ove necessario, la configurazione per i \textit{Named Vectors}. Tale approccio consente di associare a un singolo record vettoriale molteplici rappresentazioni prodotte dai modelli differenti, agevolando le prestazioni in fase di retrieval.
+
+In linea con l'approccio adottato per Neo4j, il processo implementa un pre-processing di arricchimento semantico. Prima della generazione dell'embedding, vengono estratti i metadati dal \textit{payload} del database per costruire una gerarchia di contesto testuale (es. \textit{"Atto: Codice Civile | Titolo I | Capo II | Art. 4"}).
+
+\subsection{Orchestrazione del Processo}
+Il flusso di \textit{ingestion} è governato da uno script principale che, sfruttando un \textit{Factory Pattern}, istanzia dinamicamente tutti i modelli di embedding. Successivamente, esegue un loop iterativo: per ogni modello caricato, lancia l'esecuzione su tutte le strategie di database configurate (Neo4j e Qdrant). L'intero ciclo è tracciato minuziosamente tramite un modulo di logging su file e console per monitorare i tempi di generazione e individuare bottleneck prestazionali.

@@ -5,8 +5,6 @@ MAIN = thesis.tex
 
 # Il target di default quando digiti solo 'make'
 all: pdf
-	sleep 1
-	$(MAKE) clean 
 
 # Target per compilare il PDF usando il demone Docker
 pdf:
