@@ -1,18 +1,16 @@
-\section{Strutturazione Semantica dei Documenti tramite LLM}
+\section{Strutturazione dei Documenti tramite LLM}
 \label{sec:strutturazione_semantica}
 
-Una volta ultimata la fase di estrazione deterministica del testo grezzo, illustrata nella sezione precedente, i documenti normativi si presentano sotto forma di file testuali piatti in formato Markdown. Tali file, pur contenendo l'intero testo originale, sono del tutto privi di metadati strutturali e di una formattazione semantica chiara. 
-Poiché l'architettura di sistema prevede l'ingestione di questi documenti all'interno di un database a grafo (Neo4j) e in un database vettoriale (Qdrant), risulta indispensabile trasformare il testo non strutturato in una gerarchia dati rigorosa. L'archiviazione del solo testo grezzo, infatti, risulterebbe del tutto inadeguata e priva di utilità pratica. Una strutturazione accurata rappresenta il prerequisito fondamentale per abilitare qualsiasi operazione avanzata di \textit{information retrieval}, garantendo che i dati possano essere interrogati in modo efficiente e contestuale.
+Una volta ultimata la fase di estrazione del testo grezzo, illustrata nella sezione precedente, i documenti normativi si presentano sotto forma di file testuali piatti in formato Markdown. Tali file, pur contenendo l'intero testo originale, sono del tutto privi di metadati strutturali e di una formattazione gerarchica chiara. 
+Poiché l'architettura di sistema prevede l'ingestione di questi documenti all'interno di un database a grafo (Neo4j) e in un database vettoriale (Qdrant), risulta indispensabile trasformare il testo non strutturato in una gerarchia rigorosa. L'archiviazione del solo testo grezzo, infatti, risulterebbe del tutto inadeguata e priva di utilità pratica. Una strutturazione accurata rappresenta il prerequisito fondamentale per abilitare qualsiasi operazione avanzata di \textit{information retrieval}, garantendo che i dati possano essere interrogati in modo efficiente e contestuale.
 
 \subsection{Il Modello e la Strategia di Generazione}
 
-Per affrontare il compito cruciale della strutturazione sintattica, è stato impiegato il Large Language Model \texttt{Gemini 2.5-flash}. A livello di architettura software, l'integrazione del modello è stata realizzata mediante il modulo \texttt{JsonStrategy}, una classe scritta in Python che implementa il pattern comportamentale \textit{Strategy} interfacciandosi con le API di Google GenAI.
+Per affrontare il compito cruciale della strutturazione sintattica, è stato impiegato il Large Language Model \texttt{Gemini 2.5-flash}. A livello di architettura software, il processo è diviso in due step distinti: la generazione di una struttura JSON gerarchica e l'estrazione delle relazioni semantiche tra le entità legali.
 
-Al fine di garantire che l'output del modello sia strettamente confinato a una struttura dati ben definita, la strategia sfrutta la configurazione nativa delle API di Gemini, forzando il parametro \texttt{response\_mime\_type} al valore \texttt{"application/json"}. Questo vincolo formale assicura che il modello non restituisca testo discorsivo, introduzioni o blocchi di codice Markdown, ma esclusivamente un oggetto JSON puro, requisito fondamentale per la successiva automazione delle pipeline di inserimento a database.
+\subsection{Generazione della Struttura Gerarchica}
 
-\subsection{Mappatura dello Schema}
-
-L'efficacia e l'accuratezza del processo di strutturazione si fondano su un \textit{System Prompt} ingegnerizzato ad hoc. Il modello viene calato nel ruolo di un esperto analista giuridico, con la direttiva assoluta di non riassumere o alterare in alcun modo il significato giuridico del testo originale. Il compito esclusivo del LLM è quello di sanare i difetti di impaginazione (come i ritorni a capo spuri derivanti dall'estrazione OCR) e mappare il contenuto all'interno del seguente schema logico:
+L'efficacia e l'accuratezza del processo di strutturazione si fondano su un \textit{System Prompt} ingegnerizzato ad hoc. Il suo compito principale è quello di mappare il contenuto all'interno del seguente schema logico:
 
 \begin{itemize}
     \item \textbf{Metadati (\texttt{metadata}):} Il modello estrae e categorizza i dati identificativi dell'atto. Vengono isolati campi chiave come la data di stipula, il titolo completo e il nome del file originale.
@@ -47,4 +45,4 @@ In questa fase, l'input non è più il testo grezzo, ma i file JSON prodotti nel
 
 L'output di questa analisi è una rete di collegamenti formali, dove per ciascuna relazione vengono specificati il nodo di partenza, il nodo di arrivo e il tipo di legame. Queste informazioni sono esportate in un nuovo set di file JSON.
 
-Questo approccio a due stadi—prima l'estrazione della struttura e poi l'analisi delle relazioni—permette di separare le responsabilità e ridurre il carico cognitivo del modello a ogni ciclo. In questo modo, si minimizza il rischio di errori e si produce un dataset pulito e affidabile, pronto per essere caricato nel grafo.
+Questo approccio a due stadi permette di separare le responsabilità e ridurre il carico cognitivo del modello a ogni ciclo. In questo modo, si minimizza il rischio di errori e si produce un dataset pulito e affidabile, pronto per essere caricato nel grafo.
