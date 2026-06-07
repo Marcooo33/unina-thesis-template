@@ -65,7 +65,7 @@ Il fulcro del processo di ingestion in Qdrant risiede nell'operazione di appiatt
 \begin{itemize}
     \item \textbf{Identificazione dell'unità fondamentale:} L'unità minima di indicizzazione viene individuata nel modello \texttt{Paragraph} (il singolo comma). Questa porzione di testo rappresenta il compromesso ottimale per bilanciare la granularità informativa e la focalizzazione semantica del modello di embedding.
     \item \textbf{Il problema del contesto assoluto:} Memorizzare un comma in modo isolato causerebbe una perdita critica di contesto, rendendo impossibile determinare a quale articolo o sezione appartenga il testo recuperato.
-    \item \textbf{Risoluzione tramite \textit{Tree-Climbing}:} Per preservare l'integrità strutturale, l'algoritmo esegue una procedura di risalita in memoria per ciascun paragrafo. Partendo dall'elemento foglia (il comma), risale ricorsivamente la catena dei nodi padri, estraendo il numero e il titolo di ogni livello gerarchico attraversato (Articolo, Capo, Titolo).
+    \item \textbf{Risoluzione tramite \textit{Tree-Climbing}:} Per preservare l'integrità strutturale, l'algoritmo esegue una procedura di risalita in memoria per ciascun comma. Partendo dall'elemento foglia (il comma), risale ricorsivamente la catena dei nodi padri, estraendo il numero e il titolo di ogni livello gerarchico attraversato (Articolo, Capo, Titolo).
 \end{itemize}
 Tutte le informazioni così raccolte vengono infine aggregate e inserite all'interno del dizionario di metadati del punto vettoriale, denominato \textbf{\textit{Payload}}
 

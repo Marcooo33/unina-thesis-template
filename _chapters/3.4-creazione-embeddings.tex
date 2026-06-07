@@ -11,7 +11,6 @@ Per garantire la massima flessibilità nell'uso di modelli eterogenei, è stata 
     \item \textbf{Modelli Cloud HuggingFace (\texttt{HuggingFaceCloudModel}):} si interfacciano con la \textit{HuggingFace Inference API}. Per garantire la resilienza del sistema, la classe implementa un meccanismo di tolleranza ai guasti basato su tentativi multipli in caso di errore di rete o di superamento dei limiti di utilizzo, con attese esponenziali tra i tentativi.
     \item \textbf{Modelli Cloud Gemini (\texttt{GeminiCloudModel}):} comunicano tramite l'endpoint REST \texttt{embedContent} di Google. Anche qui è stato implementato il meccanismo di retry e, inoltre, per ottimizzare ulteriormente il throughput, viene utilizzata una strategia di rotazione circolare su un pool di API keys fornite in configurazione.
 \end{itemize}
-
 In particolare, sono stati integrati quattro specifici modelli di embedding per verificare le differenze prestazionali e di accuratezza in fase di retrieval:
 
 \begin{itemize}
@@ -33,7 +32,7 @@ Un aspetto cruciale condiviso da entrambe le strategie è l'\textbf{arricchiment
 La \texttt{Neo4jEmbeddingStrategy} gestisce l'estrazione, la vettorizzazione e il salvataggio degli embedding nel database a grafo. Il processo si articola in tre fasi principali:
 
 \begin{enumerate}
-    \item \textbf{Estrazione e arricchimento contestuale:} Il sistema esegue una query Cypher (\texttt{FETCH\_QUERY}) che risale la gerarchia del documento a partire dal testo del nodo \texttt{:Paragraph}. La query estrae i metadati dei nodi padre (Atto, Titolo, Capo, Articolo) e li concatena al contenuto del paragrafo, generando una stringa arricchita e contestualizzata.
+    \item \textbf{Estrazione e arricchimento contestuale:} Il sistema esegue una query Cypher (\texttt{FETCH\_QUERY}) che risale la gerarchia del documento a partire dal testo del nodo \texttt{:Paragraph}. La query estrae i metadati dei nodi padre (Atto, Titolo, Capo, Articolo) e li concatena al contenuto del comma, generando una stringa arricchita e contestualizzata.
     \item \textbf{Generazione degli embedding:} Il testo completo viene inviato ai modelli di \textit{embedding}. I modelli processano e traducono il testo in vettori numerici, catturando così sia il significato letterale del testo sia le dipendenze semantiche legate alla sua esatta collocazione nella legge.
     \item \textbf{Salvataggio nel database:} Infine, i vettori generati vengono salvati nel grafo. Viene creato un nuovo nodo dedicato assegnandogli due \textit{label}: una generica (\texttt{:Embedding}) e una dinamica, specifica per il modello utilizzato (es. \texttt{:Embedding\_embeddinggemma\_300m}). Questo nodo memorizza il vettore generato (\texttt{vector}) e i dettagli del modello. Il processo si conclude creando una relazione \texttt{[:HAS\_EMBEDDING]} che connette il nodo \texttt{:Paragraph} originario al suo rispettivo nodo \textit{:Embedding}.
 \end{enumerate}
@@ -42,6 +41,3 @@ La \texttt{Neo4jEmbeddingStrategy} gestisce l'estrazione, la vettorizzazione e i
 La classe \texttt{QdrantEmbeddingStrategy} verifica a runtime lo schema della collezione, inizializzandone, ove necessario, la configurazione per i \textit{Named Vectors}. Tale approccio consente di associare a un singolo record vettoriale molteplici rappresentazioni prodotte dai modelli differenti, agevolando le prestazioni in fase di retrieval.
 
 In linea con l'approccio adottato per Neo4j, il processo implementa un pre-processing di arricchimento semantico. Prima della generazione dell'embedding, vengono estratti i metadati dal \textit{payload} del database per costruire una gerarchia di contesto testuale (es. \textit{"Atto: Codice Civile | Titolo I | Capo II | Art. 4"}).
-
-\subsection{Orchestrazione del Processo}
-Il flusso di \textit{ingestion} è governato da uno script principale che, sfruttando un \textit{Factory Pattern}, istanzia dinamicamente tutti i modelli di embedding. Successivamente, esegue un loop iterativo: per ogni modello caricato, lancia l'esecuzione su tutte le strategie di database configurate (Neo4j e Qdrant). L'intero ciclo è tracciato minuziosamente tramite un modulo di logging su file e console per monitorare i tempi di generazione e individuare bottleneck prestazionali.
