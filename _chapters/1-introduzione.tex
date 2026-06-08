@@ -3,18 +3,19 @@
 \inlineminitoc
 
 \section{Definizione del problema}
-Il lavoro di tesi si inserisce nel contesto delle attività di ricerca e sviluppo svolte presso InfoCube, un'azienda di consulenza informatica specializzata, tra le altre cose, in Intelligenza Artificiale.
-Nello specifico, il progetto ruota attorno a \textbf{LUDOVICA} (\textit{Language Understanding for Document Optimization and Validation In Civil Administration}), un motore generativo basato sull'IA progettato per la Pubblica Amministrazione Locale.
-L'obiettivo principale di LUDOVICA è fornire ai funzionari un sistema capace di elaborare richieste in linguaggio naturale, cercare atti pertinenti, e generare template di atti amministrativi pronti all'uso e modificabili.
+La Pubblica Amministrazione Locale italiana fa quotidianamente affidamento su una vasta e complessa mole di testi normativi, atti e delibere. L'elaborazione automatica di tali documenti è tuttavia ostacolata da diverse sfide intrinseche: i testi sono spesso archiviati in formati non strutturati (come i PDF), presentano difformità di impaginazione, impiegano un linguaggio burocratico peculiare e si articolano in una rigida e profonda struttura gerarchica. 
+Quando si tenta di automatizzare la ricerca e la stesura di nuovi atti attraverso sistemi basati su Intelligenza Artificiale Generativa, l'approccio classico - basato unicamente sul recupero esplorativo di porzioni di testo destrutturato (frammenti di testo o "chunk") - si rivela insufficiente, portando inevitabilmente alla potenziale perdita del contesto legale e allo smarrimento delle relazioni gerarchiche originarie dell'atto documentale.
 
-Il problema tecnico fondamentale affrontato in questo tirocinio consiste nella \textbf{trasformazione di documenti legali in un formato strutturato e interrogabile dalle macchine, in modo da poter costruire un solido database a grafo (\textit{Knowledge Graph})}.
-Poiché gli atti normativi possiedono una gerarchia fissa e complessa (Titoli, Capi, Articoli, Commi), è cruciale che l'architettura dei dati rifletta questa struttura per permettere al sistema di risalire sempre al documento originale a partire da una singola porzione di testo.
+È in questo scenario che si inserisce il lavoro di tesi, svolto nell'ambito delle attività di tirocinio presso \textbf{InfoCube} per contribuire allo sviluppo del progetto \textbf{LUDOVICA}, il cui obiettivo finale è fornire ai funzionari della PA un motore generativo affidabile, capace di recuperare gli atti pregressi pertinenti e generare template documentali pronti all'uso. Affinché le risposte del sistema siano rigorose e verificabili è emersa l'esigenza di adottare un'architettura dati che introduca una solida topologia informativa.
 
-A livello operativo, le attività di tirocinio si sono concentrate su tre task principali:
+Il problema tecnico fondamentale affrontato consiste quindi nella necessità di \textbf{convertire i documenti normativi complessi in una base di conoscenza interrogabile} (\textit{Knowledge Graph}) che conservi fedelmente la struttura semantica e gerarchica originale (Titoli, Capi, Articoli).
+
+\section{Obiettivi del lavoro di tesi}
+Al fine di superare i limiti esposti e dotare il sistema di solidi meccanismi per l'interpretazione del linguaggio giuridico, il lavoro si è articolato nei seguenti obiettivi:
 \begin{enumerate}
-    \item Il \textbf{salvataggio dei documenti legali e delle loro gerarchie} sul database a grafo \textit{Neo4j}.
-    \item L'\textbf{implementazione della \textit{Semantic Search}}, affiancata al \textbf{testing di molteplici modelli di embedding} per valutarne le prestazioni e l'accuratezza delle risposte sul testo legale in lingua italiana.
-    \item L'\textbf{introduzione del database vettoriale\textit{Qdrant}}, impiegato unicamente a scopo di testing per poter effettuare un \textbf{confronto diretto delle performance} tra un approccio basato sulla sola ricerca vettoriale e quello topologico basato sui grafi.
+    \item \textbf{Modellazione topologica e digitalizzazione:} Costruire una pipeline di inserimento per tradurre documenti legali non strutturati in un database a grafo (\textit{Neo4j}), definendo rigorosamente la mappatura delle relazioni che legano tra loro le sezioni della gerarchia normativa.
+    \item \textbf{Semantic Search per il dominio giuridico:} Sviluppare il modulo di interrogazione intelligente del database e quantificare, mediante il testing di molteplici modelli di embedding, quale sia la soluzione più performante nel catturare la semantica intrinseca del linguaggio legale in lingua italiana.
+    \item \textbf{Analisi prestazionale degli approcci di Retrieval:} Integrare un database puramente vettoriale (\textit{Qdrant}) per poter eseguire un \textbf{confronto diretto}. L'obiettivo è misurare la differenza qualitativa delle risposte e confrontare le prestazioni fornite da un approccio di ricerca puramente vettoriale, rispetto a un'interrogazione che sfrutti anche la navigazione topologica sul grafo.
 \end{enumerate}
 
 \section{Tecnologie utilizzate}
@@ -51,5 +52,5 @@ Consente di gestire e navigare le relazioni in maniera altamente efficiente risp
 
 \subsection*{Deployment e Containerizzazione}
 \begin{itemize}
-    \item \textbf{Docker:} L'intero ecosistema è stato modularizzato attraverso lo sviluppo di container isolati e specifici (es. \texttt{extract-from-pdf}, \texttt{db-ingestion}, \ldots{}). Questa scelta ha garantito un'elevata modularità, l'isolamento delle dipendenze software e un rigoroso controllo sulle risorse computazionali, specialmente durante i task più onerosi legati all'\textbf{\textit{Optical Character Recognition (OCR)}} e alla \textbf{\textit{generazione degli Embedding}}.
+    \item \textbf{Docker:} L'intero ecosistema è stato modularizzato attraverso lo sviluppo di container isolati e specifici. Questa scelta ha garantito un'elevata modularità, l'isolamento delle dipendenze software e un rigoroso controllo sulle risorse computazionali, specialmente durante i task più onerosi legati all'\textit{Optical Character Recognition (OCR)} e alla \textit{generazione degli Embedding}.
 \end{itemize}

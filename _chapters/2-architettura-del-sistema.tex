@@ -4,7 +4,7 @@
 
 In questo capitolo viene presentata l'architettura complessiva del sistema sviluppato, illustrando i componenti principali e il flusso di dati attraverso le diverse fasi del processo. L'obiettivo è fornire una panoramica chiara e dettagliata delle scelte progettuali adottate per affrontare le sfide tecniche del progetto.
 
-\section{Componenti del Sistema}
+\section{Componenti del sistema}
 I componenti sono presentati in ordine logico, rappresentando il percorso che i dati seguono dal momento in cui vengono acquisiti fino alla fase di interrogazione e utilizzo da parte degli utenti finali.
 
 \begin{enumerate}
@@ -14,8 +14,8 @@ I componenti sono presentati in ordine logico, rappresentando il percorso che i 
     
     \item \textbf{Archiviazione nei Database:} Descrizione delle tecnologie di storage utilizzate, con focus sui due principali database impiegati:
     \begin{enumerate}
-        \item[\textbf{3.1}] \textbf{Database a Grafo \textit{(Neo4j)}:} Illustrazione della struttura del database e del processo di inserimento dei dati, con particolare attenzione alla modellazione delle informazioni e alla rappresentazione delle relazioni gerarchiche dei documenti normativi.
-        \item[\textbf{3.2}] \textbf{Database Vettoriale \textit{(Qdrant)}:} Descrizione del processo di inserimento dei dati strutturati nel database
+        \item[3.1] \textbf{Database a Grafo \textit{(Neo4j)}:} Illustrazione della struttura del database e del processo di inserimento dei dati, con particolare attenzione alla modellazione delle informazioni e alla rappresentazione delle relazioni gerarchiche dei documenti normativi.
+        \item[3.2] \textbf{Database Vettoriale \textit{(Qdrant)}:} Descrizione del processo di inserimento dei dati strutturati nel database
     \end{enumerate}
     
     \item \textbf{Implementazione della Ricerca Semantica:} Spiegazione dell'approccio adottato per la ricerca semantica, compresa la scelta dei modelli di embedding e le definizioni delle metriche di valutazione.

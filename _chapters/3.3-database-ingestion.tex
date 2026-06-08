@@ -1,19 +1,19 @@
 \section{Importazione dati nei Database}
 \label{sec:database_ingestion}
 
-Una volta completata l'estrazione e la strutturazione dei documenti legali in formato JSON, si apre la fase di persistenza e indicizzazione dei dati all'interno dei databse. Nel contesto di questo progetto di tirocinio, l'architettura prevede il caricamento dei dati estratti all'interno di due distinte tipologie di database: Neo4j, un database a grafo, e Qdrant, un database vettoriale.
+Una volta completata la strutturazione dei documenti legali in formato JSON, si apre la fase di persistenza e indicizzazione dei dati all'interno dei databse. Nel contesto di questo progetto di tirocinio, l'architettura prevede il caricamento dei dati estratti all'interno di due distinte tipologie di database: Neo4j, un database a grafo, e Qdrant, un database vettoriale.
 
 L'uso di due database consente di sperimentare l'uso di entrambi i paradigmi di memorizzazione sullo stesso dominio normativo, al fine di valutarne i rispettivi punti di forza, analizzare le performance e far emergere differenze qualitative e quantitative nelle fasi di interrogazione e navigazione dei testi legali.
 
 Per garantire la coesistenza flessibile di queste due tecnologie e favorire un ambiente di sviluppo pulito e modulare, lo sviluppo del software ha visto l'applicazione combinata di due noti design pattern software: lo \textit{Strategy Pattern} e il \textit{Repository Pattern}.
 
 \subsection{I Modelli di Dominio}
-Prima di analizzare le strategie di persistenza, è fondamentale descrivere come i dati estratti vengano rappresentati in memoria. All'interno della cartella \texttt{models}, il sistema definisce le entità fondamentali del dominio normativo utilizzando il paradigma ad oggetti. Queste classi operano essenzialmente come \textit{Models}: strutture dati pure, prive di logica di persistenza diretta o dipendenze verso i DBMS, il cui unico scopo è incapsulare i dati e preservare i vincoli di integrità del dominio.
+Prima di analizzare le strategie di persistenza, è fondamentale descrivere come i dati estratti vengano rappresentati in memoria. All'interno della cartella \texttt{models} di questo step, il sistema definisce le entità fondamentali del dominio normativo utilizzando il paradigma ad oggetti. Queste classi operano essenzialmente come \textit{Entities}: strutture dati pure, prive di logica di persistenza diretta o dipendenze verso i DBMS, il cui unico scopo è incapsulare i dati e preservare i vincoli di integrità del dominio.
 
 L'architettura dei modelli rispecchia fedelmente la scomposizione gerarchica del testo legale:
 \begin{itemize}
     \item \texttt{Entity}: Rappresenta l'ente pubblico emittente (ad esempio, un Ministero o un Comune), memorizzando i metadati identificativi dell'istituzione.
-    \item \texttt{LegalAct}: Modella l'atto normativo nella sua interezza. Al suo interno, oltre ai metadati generali del documento, espone il metodo di fabbrica \texttt{from\_json\_file(file\_path)}, delegato al parsing del file JSON e alla deserializzazione ricorsiva dei suoi elementi strutturali.
+    \item \texttt{LegalAct}: Modella l'atto normativo nella sua interezza. Al suo interno, oltre ai metadati generali del documento, espone il metodo \texttt{from\_json\_file(file\_path)}, delegato al parsing del file JSON e alla deserializzazione ricorsiva dei suoi elementi strutturali.
     \item \texttt{StructuralElement}: Una classe base polimorfica specializzata nelle sottoclassi \texttt{Title}, \texttt{Chapter} e \texttt{Article}. Permette di mappare i livelli intermedi di aggregazione del testo, mantenendo traccia del numero d'ordine e del titolo della sezione.
     \item \texttt{Paragraph}: Rappresenta l'unità atomica informativa e testuale, ovvero il singolo comma o blocco di testo non ulteriormente scindibile, sul quale verranno poi calcolati gli embedding.
 \end{itemize}
@@ -21,14 +21,14 @@ L'architettura dei modelli rispecchia fedelmente la scomposizione gerarchica del
 \subsection{Disaccoppiamento della Persistenza: Lo Strategy Pattern}
 L'esigenza di effettuare una doppia ingestion prima su Neo4j e poi su Qdrant senza dover duplicare la logica di orchestrazione o modificare il flusso principale del programma ha reso naturale l'adozione del design pattern \textit{Strategy}. Questo pattern comportamentale definisce una famiglia di algoritmi, ne incapsula ciascuno all'interno di una classe e li rende tra loro intercambiabili, consentendo all'algoritmo di variare indipendentemente dai client che lo utilizzano.
 
-Nel sistema sviluppato, l'interfaccia astratta di riferimento è rappresentata dalla classe \texttt{DBImporterStrategy}. Come mostrato nel listato del codice sorgente, essa definisce tre metodi fondamentali che ogni classe concreta deve implementare:
+Nel sistema sviluppato, l'interfaccia astratta di riferimento è rappresentata dalla classe \texttt{DBImporterStrategy}. Essa definisce tre metodi fondamentali che ogni classe concreta deve implementare:
 \begin{itemize}
     \item \texttt{connect()}: per la gestione e la validazione della connessione con l'istanza specifica del database;
     \item \texttt{import\_legal\_act(entity, legal\_act)}: per l'esecuzione materiale della logica di Ingestion dell'atto normativo e dei metadati dell'ente emittente;
     \item \texttt{close()}: per la chiusura sicura delle sessioni.
 \end{itemize}
 
-Nello script principale \texttt{main.py}, il ciclo di esecuzione batch istanzia dinamicamente l'oggetto concreto (\texttt{Neo4jImporter} o \texttt{QdrantImporter}) a seconda della configurazione desiderata. La funzione \texttt{process\_documents} riceve l'istanza polimorfica tramite la \textit{Dependency Injection} ed esegue il parsing e l'ingestion dei file JSON senza curarsi di quale sia il database di destinazione. Questa architettura estendibile riduce a zero l'accoppiamento e semplifica future implementazioni con ulteriori database.
+Nello script principale \texttt{main.py}, il ciclo di esecuzione batch istanzia dinamicamente l'oggetto concreto (\texttt{Neo4jImporter} o \texttt{QdrantImporter}) a seconda della configurazione desiderata. Questa architettura estendibile riduce a zero l'accoppiamento e semplifica future implementazioni con ulteriori database.
 
 
 \subsection{Modalità di Accesso ai Dati: Il Repository Pattern}
@@ -36,28 +36,28 @@ Se lo \textit{Strategy Pattern} isola i database nella loro interezza rispetto a
 L'obiettivo principale del Repository Pattern è centralizzare la logica di costruzione ed esecuzione delle query, offrendo al client un'interfaccia astratta per poter salvare i dati nei database.
 In questo modo, l'importer concreto delega l'interazione fisica con il database ai singoli repository, i quali ricevono l'oggetto di dominio da persistere, nascondendo completamente i dettagli delle implementazioni delle query.
 
-\subsection{Dettagli Implementativi dell'Ingestione su Neo4j}
+\subsection{Dettagli Implementativi dell'Ingestion su Neo4j}
 Nel contesto di Neo4j, un atto legale non può essere salvato tramite un'unica operazione atomica standard, a causa delle profonde interconnessioni tra i nodi della gerarchia. Anziché concentrare la scrittura di stringhe Cypher complesse all'interno della classe \texttt{Neo4jImporter}, la responsabilità è stata distribuita su una serie di repository specializzati, ognuno deputato alla gestione del ciclo di vita di un singolo modello di dominio:
 \begin{itemize}
-    \item \texttt{EntityRepository}: Gestisce l'inserimento e l'indicizzazione dei nodi relativi agli enti istituzionali.
+    \item \texttt{EntityRepository}: Gestisce l'inserimento dei nodi relativi agli enti istituzionali.
     \item \texttt{LegalActRepository}: Inserisce il nodo radice dell'atto e lo ancora all'ente emittente.
     \item \texttt{StructuralElementRepository}: Incapsula la logica Cypher necessaria a creare i nodi intermedi del grafo e a tessere gli archi gerarchici verso i rispettivi nodi padri.
     \item \texttt{ParagraphRepository}: Si occupa esclusivamente della persistenza dei nodi foglia contenenti il testo dei commi.
 \end{itemize}
 
-Per quanto riguarda il salvataggio delle relazioni trasversali (ad esempio, le citazioni tra diversi atti normativi), queste informazioni vengono lette da file JSON esterni dedicati.
+Per quanto riguarda il salvataggio delle relazioni trasversali (ad esempio, le citazioni tra diversi atti normativi), queste informazioni vengono lette da file JSON esterni dedicati. 
+Il metodo che si occupa di questa operazione attraverso i \texttt{custom\_id} dei nodi salvati e indicizzati sul grafo trova in maniera quasi istantanea i nodi correlati dall'estratto JSON ed esegue una query Cypher dedicata procedendo alla creazione dell'arco semantico.
 
-\begin{lstlisting}[caption={Esempio di relazione CITES estratta in formato JSON}, label={lst:json-cites}, belowskip=0pt, breaklines=true]
+\begin{lstlisting}[caption={Esempio di relazione CITES estratta in formato JSON}, label={lst:json-cites}, breaklines=true]
 {
-  "sourceId": "ente-provincia-taranto__regolamento-iscrizione-elenco-speciale-associazioni-e-organismi-senza-scopo-di-lucro__article-3__paragraph-1",
+  "sourceId": "ente-provincia-taranto__CCNL-22-02-2010__article-3__paragraph-1",
   "relationshipType": "CITES",
-  "targetId": "ente-provincia-taranto__regolamento-iscrizione-elenco-speciale-associazioni-e-organismi-senza-scopo-di-lucro__article-2"
+  "targetId": "ente-provincia-taranto__CCNL-22-02-2010__article-2"
 }
 \end{lstlisting}
 
-Il metodo \texttt{import\_relationships} esegue di fatto una seconda passata sul grafo e per ogni collegamento estratto dal JSON, l'algoritmo esegue una query Cypher dedicata procedendo alla creazione dell'arco semantico. Inoltre sfruttando l'indicizzazione definita sulla proprietà \texttt{custom\_id}, il motore di Neo4j individua i nodi con tempi di ricerca estremamente ridotti.
 
-\subsection{Dettagli Implementativi dell'Ingestione su Qdrant}
+\subsection{Dettagli Implementativi dell'Ingestion su Qdrant}
 La strategia implementata nella classe \texttt{QdrantImporter} risponde a logiche radicalmente differenti rispetto a quelle dei database a grafo, dettate dai vincoli operativi dei database vettoriali e dalle necessità algoritmiche della ricerca semantica. Qdrant, infatti, non supporta nativamente strutture gerarchiche ramificate, ma organizza le informazioni in collezioni di vettori piatti denominati \textit{Points}.
 
 Il fulcro del processo di ingestion in Qdrant risiede nell'operazione di appiattimento (\textit{flattening}) della struttura ad albero dell'atto normativo, la quale è stata configurata secondo tre fasi logiche:
@@ -82,6 +82,9 @@ Tutte le informazioni così raccolte vengono infine aggregate e inserite all'int
     "chapter_num": "2",
     "chapter_name": "Area delle Alte Professionalita"
   },
-  "vector": [/* Rappresentazione numerica dell'embedding testuale */]
+  "vector": [/* Rappresentazione numerica embedding testuale */]
 }
 \end{lstlisting}
+
+\vspace{1em}
+AGGIUNGERE TEMPI DI INGESTION E NUMERO DI RECORD INSERITI PER OGNI DATABASE
