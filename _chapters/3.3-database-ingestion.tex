@@ -15,8 +15,16 @@ L'architettura dei modelli rispecchia fedelmente la scomposizione gerarchica del
     \item \texttt{Entity}: Rappresenta l'ente pubblico emittente (ad esempio, un Ministero o un Comune), memorizzando i metadati identificativi dell'istituzione.
     \item \texttt{LegalAct}: Modella l'atto normativo nella sua interezza. Al suo interno, oltre ai metadati generali del documento, espone il metodo \texttt{from\_json\_file(file\_path)}, delegato al parsing del file JSON e alla deserializzazione ricorsiva dei suoi elementi strutturali.
     \item \texttt{StructuralElement}: Una classe base polimorfica specializzata nelle sottoclassi \texttt{Title}, \texttt{Chapter} e \texttt{Article}. Permette di mappare i livelli intermedi di aggregazione del testo, mantenendo traccia del numero d'ordine e del titolo della sezione.
-    \item \texttt{Paragraph}: Rappresenta l'unità atomica informativa e testuale, ovvero il singolo comma o blocco di testo non ulteriormente scindibile, sul quale verranno poi calcolati gli embedding.
+    \item \texttt{Paragraph}: Rappresenta il singolo comma contenente il testo, ovvero l'unità atomica d'informazione, sul quale verranno poi calcolati gli embedding.
 \end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{_images/domain-models-class-diagram.pdf}
+    \caption{Class Diagram dei modelli di dominio}
+    \label{fig:domain-models-class-diagram}
+\end{figure}
+
 
 \subsection{Disaccoppiamento della Persistenza: Lo Strategy Pattern}
 L'esigenza di effettuare una doppia ingestion prima su Neo4j e poi su Qdrant senza dover duplicare la logica di orchestrazione o modificare il flusso principale del programma ha reso naturale l'adozione del design pattern \textit{Strategy}. Questo pattern comportamentale definisce una famiglia di algoritmi, ne incapsula ciascuno all'interno di una classe e li rende tra loro intercambiabili, consentendo all'algoritmo di variare indipendentemente dai client che lo utilizzano.
@@ -48,7 +56,7 @@ Nel contesto di Neo4j, un atto legale non può essere salvato tramite un'unica o
 Per quanto riguarda il salvataggio delle relazioni trasversali (ad esempio, le citazioni tra diversi atti normativi), queste informazioni vengono lette da file JSON esterni dedicati. 
 Il metodo che si occupa di questa operazione attraverso i \texttt{custom\_id} dei nodi salvati e indicizzati sul grafo trova in maniera quasi istantanea i nodi correlati dall'estratto JSON ed esegue una query Cypher dedicata procedendo alla creazione dell'arco semantico.
 
-\begin{lstlisting}[caption={Esempio di relazione CITES estratta in formato JSON}, label={lst:json-cites}, breaklines=true]
+\begin{lstlisting}[caption={Esempio di relazione estratta in formato JSON}, label={lst:json-cites}, breaklines=true]
 {
   "sourceId": "ente-provincia-taranto__CCNL-22-02-2010__article-3__paragraph-1",
   "relationshipType": "CITES",
@@ -73,7 +81,7 @@ Tutte le informazioni così raccolte vengono infine aggregate e inserite all'int
 {
   "id": "00020dff-edff-51b8-b2fb-a953ed7e5c0e",
   "payload": {
-    "p_id": "ente-provincia-taranto__regolamento-area-delle-posizioni-organizzative-e-delle-alte-professionalita__chapter-2__article-14__paragraph-1",
+    "p_id": "ente-provincia-taranto__regolamento-area-posizioni-organizzative-e-alte-professionalita__chapter-2__article-14__paragraph-1",
     "text": "Il presente Regolamento entrera in vigore ad avvenuta pubblicazione del medesimo all'Albo Pretorio on-line nonche sul sito web ufficiale dell'Ente.",
     "paragraph_num": "1",
     "act_name": "Regolamento Area delle Posizioni Organizzative e delle Alte Professionalita.json",
@@ -87,4 +95,25 @@ Tutte le informazioni così raccolte vengono infine aggregate e inserite all'int
 \end{lstlisting}
 
 \vspace{1em}
-AGGIUNGERE TEMPI DI INGESTION E NUMERO DI RECORD INSERITI PER OGNI DATABASE
+\subsection{Risultati e Metriche}
+Al termine delle procedure di ingestion sui documenti dell'Ente Provincia di Taranto, è stato possibile raccogliere i dati quantitativi relativi ai tempi di esecuzione e ai volumi di record inseriti per entrambi i database.
+
+I log di sistema hanno registrato le metriche riassunte nella Tabella~\ref{tab:ingestion_metrics}.
+
+\begin{table}[htbp]
+    \centering
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{lcccc}
+        \hline
+        \textbf{Database} & \textbf{Totale Elementi} & \textbf{Commi Inseriti} & \textbf{Relazioni} & \textbf{Tempo (Ingestion)} \\
+        \hline
+        \textbf{Neo4j (Grafo)} & 3720 Nodi & 2763 & 4176 & \textbf{18.53 s} \\
+        \textbf{Qdrant (Vettoriale)} & 2763 Punti & 2763 & N/D (Flat) & \textbf{0.34 s} \\
+        \hline
+    \end{tabular}
+    \caption{Confronto metriche e tempi tra Neo4j e Qdrant.}
+    \label{tab:ingestion_metrics}
+\end{table}
+
+I risultati mettono in luce in modo evidente le notevoli differenze operative tra i due sistemi in fase di scrittura. La costruzione topologica di Neo4j richiede tempi di elaborazione maggiori a causa dei molteplici controlli sui vincoli di unicità e della creazione delle innumerevoli relazioni tra i nodi, mentre l'approccio "piatto" di Qdrant si dimostra estremamente rapido per il caricamento massivo dei vettori.
+
