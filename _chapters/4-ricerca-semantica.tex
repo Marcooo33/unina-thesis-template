@@ -1,0 +1,160 @@
+\chapter{Ricerca Semantica}\label{chap:semantic-search}
+
+\inlineminitoc
+
+\section{Introduzione alla Ricerca Semantica}
+La capacità di recuperare in modo preciso e tempestivo le normative pertinenti a partire da query in linguaggio naturale rappresenta un requisito fondamentale per l'efficacia del progetto proposto. Con il termine "ricerca vettoriale" ci si riferisce a una tecnica che permette di recuperare informazioni in base al loro significato semantico piuttosto che alla corrispondenza esatta delle parole chiave. Questo processo prevede che sia i testi archiviati che le domande degli utenti vengano tradotti in vettori numerici. La pertinenza tra una query e un testo viene calcolata tramite la \textit{Cosine Similarity} (Similarità del Coseno), una metrica che misura l'ampiezza dell'angolo tra due vettori in uno spazio multidimensionale: minore è l'angolo, maggiore è l'affinità semantica tra i due contenuti.
+
+Questo capitolo illustra l'implementazione della \textit{Semantic Search} sui documenti legali precedentemente salvati. L'obiettivo del benchmarking è valutare le prestazioni della \textit{vector-search} applicata al dominio legale, analizzando il comportamento del sistema al variare dei parametri di ricerca e proponendo un confronto prestazionale approfondito tra i molteplici modelli di embedding (descritti nella Sezione \ref{sec:creazione_embedding}) e i due database vettoriali adottati (Neo4j e Qdrant, introdotti nella Sezione \ref{sec:database_ingestion}).
+
+\section{Setup Sperimentale}
+Nel contesto di questa valutazione, il set di test comprende 70 domande in linguaggio naturale, ciascuna delle quali ammette come risposta corretta un singolo e specifico comma, all'interno di un dominio normativo composto da 44 documenti, per un totale di 2763 commi vettorializzati.
+
+\subsection{Definizione della soglia di ricerca: il parametro Top-K}
+La capacità di recupero del sistema è stata analizzata variando la soglia dei risultati restituiti, definita dal parametro \texttt{Top-K}. Nell'ambito dell'\textit{Information Retrieval}, il parametro \texttt{K} indica il numero di documenti (nel nostro dominio, i commi) maggiormente pertinenti che il motore di ricerca seleziona per rispondere a una query. Operativamente, dopo aver calcolato la \textit{Cosine Similarity} tra il vettore della query e quelli di tutti i documenti del sistema, i risultati vengono ordinati in modo decrescente in base al punteggio ottenuto. Selezionare i \texttt{Top-K} risultati significa estrarre esclusivamente i primi \texttt{K} elementi di questa graduatoria, ovvero quelli semanticamente più affini alla domanda.
+
+Ai fini della sperimentazione, sono state impostate soglie di \texttt{Top-K} pari a 10, 5, 3 e 1. Tale approccio a soglie decrescenti ha lo scopo di misurare con quale frequenza percentuale il singolo comma atteso rientri nelle prime \texttt{K} posizioni del ranking. In uno scenario ideale, il sistema dovrebbe essere in grado di posizionare la risposta corretta sempre al primo posto (\texttt{Top-1}), tuttavia, analizzare soglie più ampie permette di valutare se il sistema riesce comunque a confinare l'informazione corretta all'interno di un sottoinsieme ristretto di commi.
+
+\subsection{Allineamento delle strategie di ricerca: ANN vs Exact k-NN}
+Durante i test preliminari per l'esecuzione della ricerca, è emersa una differenza sostanziale nel comportamento predefinito dei due database. Neo4j applicava di default algoritmi di ricerca approssimata (\textit{Approximate Nearest Neighbors} o ANN), i quali privilegiano la velocità ma introducono un margine di errore che ha portato, in alcuni casi, alla mancata estrazione di commi pertinenti. Al contrario Qdrant, essendo un database vettoriale puro, adottava nativamente una strategia di scansione esatta per dataset di dimensioni contenute (inferiori ai 20.000 record).
+
+Al fine di garantire un confronto prestazionale equo tra i modelli e tra le due soluzioni di storage, la configurazione di ricerca è stata uniformata forzando l'esecuzione in modalità di ricerca esaustiva (\textit{Exact k-NN}) su entrambi i database. Questa scelta ha permesso di misurare con assoluta precisione matematica il piazzamento delle risposte, annullando le discrepanze che sarebbero state introdotte dagli algoritmi di approssimazione.
+
+\section{Metriche di valutazione}
+L'analisi si focalizza su tre metriche chiave ampiamente utilizzate nei task di Information Retrieval:
+\begin{itemize}
+    \item \textbf{HIT@K}: La percentuale di query per cui il comma corretto è presente nei primi \texttt{K} risultati restituiti dal database.
+    \item \textbf{MRR (Mean Reciprocal Rank)}: Valuta la posizione media in cui appare il comma corretto. Valori più vicini a 1 indicano una migliore qualità del ranking.
+    \item \textbf{Latenza Media}: Il tempo medio impiegato dal database per elaborare la similarità semantica e restituire i risultati, espresso in millisecondi (ms).
+\end{itemize}
+
+\section{Risultati sperimentali}
+Di seguito sono riportate le tabelle comparative che mostrano le performance di ciascun modello in abbinamento a Neo4j e Qdrant, suddivise in base al numero di risultati recuperati (\texttt{Top-K}).
+
+\subsection{Risultati con Top-K = 1}
+In questa configurazione viene valutata unicamente la correttezza del primo risultato restituito (Hit@1).
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{llccc}
+        \toprule
+        \textbf{Modello di Embedding} & \textbf{Database} & \textbf{HIT@1 (\%)} & \textbf{MRR} & \textbf{Latenza (ms)} \\
+        \midrule
+        \texttt{BAAI/bge-m3} & Neo4j & \textbf{68.6\%} & \textbf{0.686} & 213.71 \\
+        \texttt{BAAI/bge-m3} & Qdrant & 55.7\% & 0.557 & 10.34 \\
+        \midrule
+        \texttt{gemini/gemini-embedding-001} & Neo4j & 57.1\% & 0.571 & 169.00 \\
+        \texttt{gemini/gemini-embedding-001} & Qdrant & 67.1\% & 0.671 & 8.66 \\
+        \midrule
+        \texttt{google/embeddinggemma-300m} & Neo4j & 55.7\% & 0.557 & 109.23 \\
+        \texttt{google/embeddinggemma-300m} & Qdrant & 58.6\% & 0.586 & \textbf{5.77} \\
+        \midrule
+        \texttt{intfloat/multilingual-e5-large} & Neo4j & 51.4\% & 0.514 & 187.40 \\
+        \texttt{intfloat/multilingual-e5-large} & Qdrant & 55.7\% & 0.557 & 10.47 \\
+        \bottomrule
+    \end{tabular}
+    \caption{Prestazioni della ricerca semantica con Top-K = 1}
+    \label{tab:top1}
+\end{table}
+
+Come si evince dalla Tabella \ref{tab:top1}, per il modello \texttt{BAAI/bge-m3} su Top-1, Neo4j ha un vantaggio considerevole in termini di Hit (68.6\% contro 55.7\%), seppur con latenze molto più elevate ($\sim$200ms vs $\sim$10ms).
+
+\subsection{Risultati con Top-K = 3}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{llccc}
+        \toprule
+        \textbf{Modello di Embedding} & \textbf{Database} & \textbf{HIT@3 (\%)} & \textbf{MRR} & \textbf{Latenza (ms)} \\
+        \midrule
+        \texttt{BAAI/bge-m3} & Neo4j & \textbf{90.0\%} & \textbf{0.786} & 184.12 \\
+        \texttt{BAAI/bge-m3} & Qdrant & 88.6\% & 0.717 & 5.21 \\
+        \midrule
+        \texttt{gemini/gemini-embedding-001} & Neo4j & 82.9\% & 0.683 & 108.48 \\
+        \texttt{gemini/gemini-embedding-001} & Qdrant & 91.4\% & 0.783 & 4.76 \\
+        \midrule
+        \texttt{google/embeddinggemma-300m} & Neo4j & 78.6\% & 0.664 & 104.42 \\
+        \texttt{google/embeddinggemma-300m} & Qdrant & 92.9\% & 0.752 & \textbf{3.65} \\
+        \midrule
+        \texttt{intfloat/multilingual-e5-large} & Neo4j & 81.4\% & 0.652 & 185.26 \\
+        \texttt{intfloat/multilingual-e5-large} & Qdrant & 88.6\% & 0.712 & 5.43 \\
+        \bottomrule
+    \end{tabular}
+    \caption{Prestazioni della ricerca semantica con Top-K = 3}
+    \label{tab:top3}
+\end{table}
+
+Come si evince dalla Tabella \ref{tab:top3}, restringendo il recupero a soli 3 risultati, Qdrant domina nettamente sulle latenze (sempre sotto i 6ms). A livello di accuratezza, Qdrant ottiene risultati migliori quasi ovunque tranne che per il modello \texttt{BAAI/bge-m3}, dove Neo4j registra i punteggi di HIT e MRR più alti.
+
+\subsection{Risultati con Top-K = 5}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{llccc}
+        \toprule
+        \textbf{Modello di Embedding} & \textbf{Database} & \textbf{HIT@5 (\%)} & \textbf{MRR} & \textbf{Latenza (ms)} \\
+        \midrule
+        \texttt{BAAI/bge-m3} & Neo4j & \textbf{95.7\%} & \textbf{0.799} & 235.54 \\
+        \texttt{BAAI/bge-m3} & Qdrant & \textbf{95.7\%} & 0.735 & 7.23 \\
+        \midrule
+        \texttt{gemini/gemini-embedding-001} & Neo4j & 87.1\% & 0.692 & 163.99 \\
+        \texttt{gemini/gemini-embedding-001} & Qdrant & 92.9\% & 0.787 & 6.76 \\
+        \midrule
+        \texttt{google/embeddinggemma-300m} & Neo4j & 85.7\% & 0.681 & 107.88 \\
+        \texttt{google/embeddinggemma-300m} & Qdrant & 95.7\% & 0.759 & \textbf{4.40} \\
+        \midrule
+        \texttt{intfloat/multilingual-e5-large} & Neo4j & 82.9\% & 0.655 & 186.49 \\
+        \texttt{intfloat/multilingual-e5-large} & Qdrant & 91.4\% & 0.718 & 7.29 \\
+        \bottomrule
+    \end{tabular}
+    \caption{Prestazioni della ricerca semantica con Top-K = 5}
+    \label{tab:top5}
+\end{table}
+
+Aumentando il bacino di ricerca a \texttt{Top-K=5} (Tabella \ref{tab:top5}), l'accuracy aumenta per tutti i modelli. Il modello \texttt{BAAI/bge-m3} raggiunge un notevole 95.7\% su entrambi i database, sebbene Qdrant si mantenga costantemente più rapido di due ordini di grandezza.
+
+\subsection{Risultati con Top-K = 10}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{llccc}
+        \toprule
+        \textbf{Modello di Embedding} & \textbf{Database} & \textbf{HIT@10 (\%)} & \textbf{MRR} & \textbf{Latenza (ms)} \\
+        \midrule
+        \texttt{BAAI/bge-m3} & Neo4j & \textbf{97.1\%} & \textbf{0.801} & 197.76 \\
+        \texttt{BAAI/bge-m3} & Qdrant & \textbf{97.1\%} & 0.737 & 6.23 \\
+        \midrule
+        \texttt{gemini/gemini-embedding-001} & Neo4j & 91.4\% & 0.698 & 137.76 \\
+        \texttt{gemini/gemini-embedding-001} & Qdrant & \textbf{98.6\%} & 0.794 & 6.01 \\
+        \midrule
+        \texttt{google/embeddinggemma-300m} & Neo4j & 94.3\% & 0.694 & 107.73 \\
+        \texttt{google/embeddinggemma-300m} & Qdrant & 97.1\% & 0.761 & \textbf{4.95} \\
+        \midrule
+        \texttt{intfloat/multilingual-e5-large} & Neo4j & \textbf{97.1\%} & 0.675 & 185.72 \\
+        \texttt{intfloat/multilingual-e5-large} & Qdrant & 94.3\% & 0.722 & 7.06 \\
+        \bottomrule
+    \end{tabular}
+    \caption{Prestazioni della ricerca semantica con Top-K = 10}
+    \label{tab:top10}
+\end{table}
+
+Estendendo la ricerca a 10 risultati (Tabella \ref{tab:top10}), la maggior parte delle configurazioni supera la soglia del 94\% di HIT rate. È degna di nota la performance di \texttt{gemini-embedding-001} su Qdrant, che tocca il picco assoluto del 98.6\%.
+
+\section{Analisi Comparativa e Conclusioni}
+
+\subsection{Valutazione dei Modelli di Embedding}
+L'analisi sui modelli evidenzia i seguenti aspetti:
+\begin{enumerate}
+    \item \textbf{BAAI/bge-m3}: Si attesta come il modello più solido in assoluto. Raggiunge valori di MRR eccellenti (vicini allo 0.8) e garantisce elevati tassi di HIT fin dai valori di Top-K più bassi. È il miglior compromesso per la precisione nel dominio legale.
+    \item \textbf{gemini/gemini-embedding-001}: Mostra prestazioni estremamente competitive, in particolare in accoppiata con Qdrant, dove ottiene il miglior tasso di recupero generale (98.6\% su Top-10).
+    \item \textbf{google/embeddinggemma-300m}: Presenta un'ottima integrazione con Qdrant (registrando latenze bassissime, fino a 3.65ms), ma mostra alcune incertezze se utilizzato in Neo4j con range ristretti.
+    \item \textbf{intfloat/multilingual-e5-large}: Modello molto valido per l'ambito multilingua, che tuttavia nel perimetro strettamente legale italiano registra metriche mediamente inferiori rispetto ai suoi diretti competitor.
+\end{enumerate}
+
+\subsection{Valutazione dei Database: Neo4j vs Qdrant}
+Il divario prestazionale tra le due tecnologie è marcato e coerente su tutta la suite di test. Essendo \textbf{Qdrant} progettato nativamente per la ricerca vettoriale, garantisce latenze nell'ordine delle singole unità di millisecondo e MRR generalmente superiori, posizionando i commi corretti più in alto nel ranking. 
+
+D'altro canto, \textbf{Neo4j} gestisce la similarità tramite i propri indici vettoriali registrando latenze inevitabilmente maggiori (tra 100 e 235 ms).
+Tuttavia, l'adozione di Neo4j risulta ampiamente giustificata in quegli scenari in cui la pura ricerca semantica deve fondersi con complesse query strutturali. In tal caso, il costo prestazionale viene quindi compensato dalla capacità nativa di navigare le relazioni gerarchiche degli atti normativi salvati nel Knowledge Graph. 
+
+Indipendentemente dalla tecnologia scelta, è inoltre emerso un dato tecnico interessante riguardante l'impatto della dimensionalità dei vettori sui tempi di ricerca: i modelli che producono vettori a 768 dimensioni (\texttt{embeddinggemma-300m} e \texttt{gemini-embedding-001}) risultano costantemente più veloci rispetto a quelli a 1024 dimensioni (\texttt{bge-m3} e \texttt{multilingual-e5-large}). Questa differenza si riflette sia in Qdrant, dove le latenze si abbassano (da $\sim$5-7 ms a $\sim$3-4 ms), sia soprattutto in Neo4j, dove i tempi quasi dimezzano (scendendo da $\sim$185-235 ms a $\sim$100-110 ms). Tale comportamento evidenzia come, a prescindere dal motore di storage, la complessità computazionale del calcolo della Similarità del Coseno scali proporzionalmente alla grandezza del vettore.
+
+
+In conclusione, l'infrastruttura ideale dipenderà dal bilanciamento tra necessità Real-Time (dove Qdrant eccelle) e necessità di ricostruzione topologica del documento (dove Neo4j è essenziale). I modelli \texttt{BAAI/bge-m3} e \texttt{gemini/gemini-embedding-001} si confermano le scelte tecnologiche più robuste per l'elaborazione del linguaggio della Pubblica Amministrazione.
