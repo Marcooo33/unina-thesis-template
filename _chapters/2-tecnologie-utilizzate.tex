@@ -1,0 +1,84 @@
+\chapter{Tecnologie utilizzate}\label{chap:second}
+Per far fronte alle sfide di estrazione, elaborazione, archiviazione e interrogazione dei documenti normativi, è stato impiegato uno stack tecnologico che combina strumenti di parsing avanzato, modelli di LLM ed embedding e database specializzati. Di seguito vengono presentate le tecnologie adottate, illustrando per ciascuna le motivazioni che ne hanno guidato la scelta.
+
+\section{Linguaggi di Programmazione}
+\begin{itemize}
+    \item \textbf{Python}\cite{python}: È stato il linguaggio cardine per la costruzione dell'intera pipeline del progetto. La scelta è ricaduta su Python per diverse ragioni:
+    \begin{itemize}
+        \item \textbf{Ecosistema dedicato ai modelli linguistici:} Python dispone di librerie mature e ampiamente supportate come \texttt{sentence-transformers} e \texttt{huggingface-hub}, che hanno permesso di integrare agevolmente i modelli di embedding e i workflow di Retrieval-Augmented Generation senza dover reimplementare componenti di basso livello.
+        \item \textbf{Integrazione con i database:} I driver ufficiali per Neo4j e Qdrant offrono API Python native, ben documentate e performanti, eliminando la necessità di adattatori o wrapper di terze parti.
+    \end{itemize}
+\end{itemize}
+
+\section{Strumenti per l'estrazione del Testo}
+La fase di estrazione ha dovuto confrontarsi con documenti PDF eterogenei: alcuni nativamente digitali e ben strutturati, altri derivanti da scansioni cartacee di qualità variabile. Per questo motivo è stata adottata una combinazione di strumenti complementari.
+
+\begin{itemize}
+    \item \textbf{Open Data Loader}\cite{opendataloader}: Libreria open-source per l'estrazione e il caricamento di dati da fonti eterogenee. È stata selezionata per tre caratteristiche fondamentali:
+    \begin{itemize}
+        \item \textbf{Determinismo:} A differenza di approcci basati su modelli probabilistici, Open Data Loader estrae il testo in modo deterministico, garantendo riproducibilità e coerenza dei risultati — un requisito indispensabile nel dominio legale, dove ogni modifica del testo estratto tra un'esecuzione e l'altra minerebbe la fiducia nel sistema.
+        \item \textbf{Conversione diretta in Markdown:} Il Markdown si rivela un formato testuale ottimale per i LLM. La sua sintassi leggera preserva fedelmente la struttura logica del documento originale, fornendo al modello un contesto già strutturato che riduce significativamente gli errori nella successiva fase di parsing gerarchico.
+        
+    \end{itemize}
+
+    \item \textbf{Docling}\cite{docling}: Libreria specializzata nell'analisi del layout documentale e nell'estrazione di contenuti strutturati. È stata integrata come supporto complementare a Open Data Loader per la gestione di PDF più complessi: supporta documenti multi-colonna, tabelle e layout non lineari, frequenti negli atti della pubblica amministrazione.
+
+    \item \textbf{RapidOCR}\cite{rapidocr}: Motore di \textit{Optical Character Recognition} impiegato per digitalizzare i documenti derivanti da scansioni visive. La scelta è stata guidata da un'analisi comparativa tra diversi motori OCR:
+    \begin{enumerate}
+        \item \textbf{EasyOCR:} Configurato di default all'interno di Docling, adotta modelli basati su Deep Learning altamente accurati ma estremamente esigenti in termini computazionali. Anche isolando l'elaborazione sulla singola pagina, il consumo di RAM superava costantemente la soglia critica dei 4 GB, rendendone impossibile l'utilizzo nell'ambiente di produzione containerizzato.
+        \item \textbf{Tesseract OCR:} Si è dimostrato estremamente leggero e pienamente compatibile con i limiti di memoria imposti, scongiurando qualsiasi crash del container. Tuttavia, nel contesto specifico del linguaggio legale italiano, il motore non è stato in grado di interpretare correttamente il layout, fallendo l'estrazione del testo e restituendo output incompleti o disallineati rispetto alla struttura originale del documento.
+        \item \textbf{RapidOCR:} Questo specifico modulo è stato infine selezionato per l'estrazione del testo dalle scansioni visive. RapidOCR si è rivelato il compromesso ingegneristico ideale, offrendo un perfetto bilanciamento tra l'accuratezza del riconoscimento del testo italiano e il consumo di RAM del container, che si è mantenuto costantemente sotto la soglia di guardia. A fronte di un tempo di computazione non trascurabile — quantificabile in circa 18-20 secondi per singola pagina scansionata — questo motore assicura la totale stabilità infrastrutturale dell'intera pipeline.
+    \end{enumerate}
+\end{itemize}
+
+\section{Scelta dei Database}
+La duplice natura del problema — da un lato la necessità di rappresentare relazioni gerarchiche complesse, dall'altro l'esigenza di una ricerca semantica efficiente — ha portato all'adozione di due database complementari, ciascuno ottimizzato per uno specifico paradigma di interrogazione.
+
+\begin{itemize}
+    \item \textbf{Neo4j:} Il database a grafo scelto come storage principale per la base di conoscenza normativa. La decisione di adottare un database a grafo anziché un tradizionale database relazionale è motivata da considerazioni sia modellistiche che prestazionali:
+    \begin{itemize}
+        \item \textbf{Modellazione naturale della gerarchia normativa:} La struttura di un atto normativo — articolata in Titoli, Capi, Articoli e Commi — è intrinsecamente un grafo, in cui ogni elemento è un nodo e le relazioni di appartenenza sono archi. Neo4j consente di mappare questa topologia in modo diretto, senza le complessità delle \texttt{JOIN} ricorsive tipiche dei database relazionali.
+        \item \textbf{Flessibilità dello schema:} Il modello a grafo non impone uno schema rigido, permettendo di arricchire progressivamente la base di conoscenza con nuove tipologie di nodi e relazioni senza dover migrare lo schema esistente.
+        \item \textbf{Maturità e affidabilità:} Neo4j è il database a grafo più diffuso e maturo sul mercato, con una documentazione estesa e driver ufficiali per Python. Questo ha ridotto i rischi legati all'adozione di una tecnologia di nicchia in un contesto progettuale reale.
+    \end{itemize}
+
+    \item \textbf{Cypher}\cite{cypher}: Il linguaggio di interrogazione dichiarativo nativo di Neo4j, utilizzato per effettuare le query di inserimento e di ricerca topologica nel grafo.
+
+    \item \textbf{Qdrant}\cite{qdrant}: Database vettoriale scritto in Rust, impiegato come termine di paragone sperimentale per valutare l'efficacia dell'approccio basato su grafo. La scelta è stata motivata da:
+    \begin{itemize}
+        \item \textbf{Performance elevate:} Implementato in Rust, Qdrant offre operazioni di ricerca per similarità estremamente veloci anche su collezioni di grandi dimensioni.
+        \item \textbf{Confronto metodologico:} L'utilizzo di Qdrant ha permesso di isolare il contributo della topologia del grafo rispetto alla pura similarità semantica, quantificando il vantaggio dell'approccio GraphRAG in termini di pertinenza e completezza dei risultati.
+    \end{itemize}
+\end{itemize}
+
+\section{LLM e Modelli di Embedding}
+Il cuore intelligente del sistema risiede nei modelli di linguaggio e di embedding, responsabili rispettivamente della strutturazione semantica dei documenti e della loro vettorializzazione per la ricerca.
+
+\begin{itemize}
+    \item \textbf{Gemini 3.5 Flash}\cite{gemini}: \textit{Large Language Model} di Google, utilizzato tramite API per il compito cruciale della strutturazione sintattica dei documenti normativi. Le motivazioni alla base di questa scelta sono:
+    \begin{itemize}
+        \item \textbf{Aderenza rigorosa allo schema JSON:} Gemini 3.5 Flash ha dimostrato un'eccellente capacità di produrre output JSON conformi a uno schema predefinito, un requisito fondamentale per garantire che la gerarchia normativa (Titoli, Capi, Articoli, Commi) fosse rappresentata in modo consistente e automaticamente processabile dalle fasi successive della pipeline.
+        \item \textbf{Comprensione della lingua italiana:} Il modello ha mostrato una solida competenza nell'elaborazione del linguaggio burocratico italiano, riconoscendo correttamente la terminologia giuridica e le espressioni formulari tipiche degli atti amministrativi.
+        \item \textbf{Rapporto costo/qualità:} Rispetto a modelli più potenti ma significativamente più costosi (come GPT-4 o Claude), Gemini 3.5 Flash ha offerto un compromesso ottimale tra qualità dell'output strutturato e costo per token, aspetto rilevante considerando l'elaborazione batch di centinaia di documenti.
+    \end{itemize}
+
+    \item \textbf{Modelli di Embedding:} La vettorializzazione del testo normativo rappresenta un elemento critico per la qualità della ricerca semantica. Sono stati testati molteplici modelli per identificare la soluzione più efficace nel dominio giuridico italiano. I test più approfonditi hanno coinvolto i seguenti modelli:
+    \begin{itemize}
+        \item \texttt{intfloat/multilingual-e5-large}\cite{multilingual-e5-large}: Modello multilingue di grandi dimensioni, scelto per la sua comprovata efficacia su benchmark multilingue. Supporta oltre 100 lingue e utilizza un approccio di embedding basato su prompt-template, che consente di adattare la rappresentazione vettoriale al tipo di task (query vs. documento).
+        \item \texttt{google/gemini-embedding-001}\cite{gemini-embedding}: Modello proprietario di Google, testato per valutare i benefici dell'integrazione nativa con l'ecosistema Gemini e per la sua capacità di produrre embedding di alta qualità ottimizzati per task di retrieval.
+        \item \texttt{google/embeddinggemma-300m}\cite{embeddinggemma}: Modello compatto da 300 milioni di parametri basato sull'architettura Gemma. È stato incluso nella sperimentazione per valutare il trade-off tra dimensione del modello e qualità degli embedding, particolarmente rilevante in scenari di deployment con risorse limitate.
+        \item \texttt{BAAI/bge-m3}\cite{bge-m3}: Modello stato dell'arte sviluppato da BAAI, specificamente progettato per supportare embedding multilingue, multi-funzionali (dense, sparse, multi-vector) e multi-granulari. La sua capacità di gestire testi lunghi fino a 8192 token lo rende particolarmente adatto ai documenti normativi, dove i commi possono estendersi per diverse centinaia di parole.
+    \end{itemize}
+    La valutazione si è basata sulla capacità di ciascun modello di recuperare i commi pertinenti a partire da query in linguaggio naturale, misurata attraverso metriche standard di Information Retrieval quali \textit{Precision@k}, \textit{Recall@k} e \textit{Mean Reciprocal Rank} (MRR).
+\end{itemize}
+
+\section{Deployment e Containerizzazione}
+\begin{itemize}
+    \item \textbf{Docker}\cite{docker}: L'intero ecosistema è stato modularizzato attraverso lo sviluppo di container isolati e specifici per ciascun componente della pipeline. Questa scelta architetturale è stata dettata da esigenze sia tecniche che operative:
+    \begin{itemize}
+        \item \textbf{Isolamento delle dipendenze:} Ogni fase della pipeline (estrazione, strutturazione, ingestione, embedding) presenta dipendenze software potenzialmente conflittuali. Docker ha permesso di incapsulare ciascuna in un ambiente dedicato, eliminando i conflitti di versione tra librerie e garantendo la riproducibilità dell'ambiente di esecuzione su qualsiasi macchina.
+        \item \textbf{Controllo delle risorse:} I task più onerosi, in particolare l'OCR con RapidOCR e la generazione degli embedding, sono soggetti a picchi di consumo di CPU e RAM. Docker consente di imporre limiti precisi sulle risorse allocate a ciascun container, prevenendo fenomeni di \textit{resource starvation} che potrebbero degradare le prestazioni dell'intero sistema.
+        \item \textbf{Modularità e manutenibilità:} La separazione in container indipendenti ha permesso di sviluppare, testare e aggiornare ciascun modulo della pipeline in isolamento, semplificando la manutenzione e facilitando l'onboarding di nuovi sviluppatori nel progetto LUDOVICA.
+        \item \textbf{Scalabilità orizzontale:} L'architettura a container costituisce un prerequisito naturale per l'orchestrazione tramite Kubernetes o Docker Swarm, aprendo la strada a futuri scenari di deployment distribuito in cui diverse istanze della pipeline possano operare concorrentemente su lotti distinti di documenti.
+    \end{itemize}
+\end{itemize}

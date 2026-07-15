@@ -1,5 +1,5 @@
 \documentclass[12pt, oneside, openright, 
-    uninadraft,
+    %uninadraft,
     %colorlinks, 
     blacklinks,
     %palatino,
@@ -91,6 +91,8 @@
     
     \clearpage
     \tableofcontents
+    \listoffigures
+    \listoftables
 
     \mainmatter
 
@@ -98,9 +100,10 @@
     \pagestyle{main}
 
     \input{_chapters/1-introduzione.tex}
-    \input{_chapters/2-architettura-del-sistema.tex}
-    \input{_chapters/3-implementazione-software.tex}
-    \input{_chapters/4-ricerca-semantica.tex}
+    \input{_chapters/2-tecnologie-utilizzate.tex}
+    \input{_chapters/3-architettura-del-sistema.tex}
+    \input{_chapters/4-implementazione-software.tex}
+    \input{_chapters/5-ricerca-semantica.tex}
 
     % \input{_chapters/X-conclusions.tex}
     % \input{_chapters/Y-appendix.tex}
@@ -108,9 +111,5 @@
     \newpage
     \pagestyle{backmatter}
     \printbibliography[heading=bibintoc]
-
-    \listoffigures
- 
-    \listoftables
 
 \end{document}

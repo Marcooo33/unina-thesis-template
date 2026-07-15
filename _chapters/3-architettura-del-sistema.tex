@@ -1,0 +1,29 @@
+\chapter{Architettura del Sistema}\label{chap:third}
+
+\inlineminitoc
+
+In questo capitolo viene presentata l'architettura complessiva del sistema sviluppato, illustrando i componenti principali e il flusso di dati attraverso le diverse fasi del processo. L'obiettivo è fornire una panoramica chiara e dettagliata delle scelte progettuali adottate per affrontare le sfide tecniche del progetto, tracciando il percorso logico che i dati seguono dal momento in cui vengono acquisiti fino alla fase di interrogazione e utilizzo da parte degli utenti finali.
+
+La Figura \ref{fig:architettura-software} fornisce un diagramma riassuntivo di tale architettura, evidenziando i moduli principali e le interazioni tra di essi. Come illustrato nello schema, il sistema è concepito come una pipeline sequenziale. 
+
+Nella prima fase, vengono applicate tecniche specifiche per il recupero dei testi grezzi dai documenti normativi, con particolare attenzione alle librerie impiegate per il parsing e alle strategie di pulizia dei dati, fondamentali per mitigare rumore e inconsistenze strutturali.
+
+Una volta estratto, il testo necessita di essere organizzato secondo le logiche giuridiche del documento. A tale scopo, la fase di strutturazione si avvale di Large Language Models (LLM) per la trasformazione del testo grezzo in un formato analizzabile. Il fulcro di questo passaggio è la definizione e l'utilizzo di uno schema JSON rigoroso, progettato appositamente per rappresentare e mantenere intatta la complessa gerarchia degli atti normativi, come la suddivisione in Titoli, Capi, Articoli e Commi.
+
+I dati validati e strutturati vengono successivamente indirizzati verso i sistemi di archiviazione. Come mostrato in Figura \ref{fig:architettura-software}, l'architettura prevede l'impiego di due diverse tecnologie di storage, popolate in parallelo per consentire un confronto architetturale e prestazionale:
+
+\begin{itemize}
+    \item Il \textbf{database a grafo (Neo4j)} è deputato alla modellazione e memorizzazione delle informazioni strutturali e semantiche. Qui, i dati vengono inseriti prestando particolare attenzione alla rappresentazione dei metadati e delle relazioni gerarchiche e sequenziali che intercorrono tra le varie parti del documento normativo. Inoltre, il database ospita anche le rappresentazioni vettoriali del testo (embedding) per abilitare la ricerca semantica all'interno del grafo stesso.
+    \item Il \textbf{database vettoriale (Qdrant)} viene anch'esso popolato con le medesime rappresentazioni vettoriali e i relativi dati strutturati essenziali. Questa archiviazione parallela è mirata a ottimizzare la ricerca per similarità in un ambiente vettoriale puro, fungendo così da termine di paragone fondamentale per la successiva fase di benchmarking tra i due approcci.
+\end{itemize}
+
+L'infrastruttura di storage fa da fondamento al modulo di implementazione della ricerca semantica. Questo componente descrive l'approccio adottato per permettere agli utenti di interrogare la base di conoscenza, includendo le motivazioni dietro la scelta di specifici modelli di embedding e la definizione delle metriche utilizzate per valutarne l'accuratezza. 
+
+Infine, per validare le scelte architetturali proposte, il sistema include un processo di benchmarking. Questo confronto analitico è stato condotto per misurare le prestazioni di ricerca, evidenziando le differenze in termini di performance ed efficacia tra l'approccio basato sul database a grafo e quello supportato dal database vettoriale.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{_images/architettura-software.png}
+    \caption{Architettura del sistema}
+    \label{fig:architettura-software}
+\end{figure}

@@ -3,7 +3,7 @@
 \inlineminitoc
 
 \section{Definizione del problema}
-La Pubblica Amministrazione Locale italiana fa quotidianamente affidamento su una vasta e complessa mole di testi normativi, atti e delibere. L'elaborazione automatica di tali documenti è tuttavia ostacolata da diverse sfide intrinseche: i testi sono spesso archiviati in formati non strutturati (come i PDF), presentano difformità di impaginazione, impiegano un linguaggio burocratico peculiare e si articolano in una rigida e profonda struttura gerarchica. 
+La pubblica amministrazione locale italiana fa quotidianamente affidamento su una vasta e complessa mole di testi normativi, atti e delibere. L'elaborazione automatica di tali documenti è tuttavia ostacolata da diverse sfide intrinseche: i testi sono spesso archiviati in formati non strutturati (come i PDF), presentano difformità di impaginazione, impiegano un linguaggio burocratico peculiare e si articolano in una rigida e profonda struttura gerarchica. 
 Quando si tenta di automatizzare la ricerca e la stesura di nuovi atti attraverso sistemi basati su Intelligenza Artificiale Generativa, l'approccio classico - basato unicamente sul recupero esplorativo di porzioni di testo destrutturato (frammenti di testo o "chunk") - si rivela insufficiente, portando inevitabilmente alla potenziale perdita del contesto legale e allo smarrimento delle relazioni gerarchiche originarie dell'atto documentale.
 
 È in questo scenario che si inserisce il lavoro di tesi, svolto nell'ambito delle attività di tirocinio presso \textbf{InfoCube} per contribuire allo sviluppo del progetto \textbf{LUDOVICA}, il cui obiettivo finale è fornire ai funzionari della PA un motore generativo affidabile, capace di recuperare gli atti pregressi pertinenti e generare template documentali pronti all'uso. Affinché le risposte del sistema siano rigorose e verificabili è emersa l'esigenza di adottare un'architettura dati che introduca una solida topologia informativa.
@@ -18,46 +18,28 @@ Al fine di superare i limiti esposti e dotare il sistema di solidi meccanismi pe
     \item \textbf{Analisi prestazionale degli approcci di Retrieval:} Integrare un database puramente vettoriale (\textit{Qdrant}) per poter eseguire un \textbf{confronto diretto}. L'obiettivo è misurare la differenza qualitativa delle risposte e confrontare le prestazioni fornite da un approccio di ricerca puramente vettoriale, rispetto a un'interrogazione che sfrutti anche la navigazione topologica sul grafo.
 \end{enumerate}
 
-\section{Tecnologie utilizzate}
-Per far fronte alle sfide di estrazione, elaborazione, archiviazione e interrogazione dei documenti normativi, è stato impiegato uno stack tecnologico che combina strumenti di parsing avanzato, modelli di LLM ed embedding e database specializzati:
+\section{Descrizione dell'approccio}
+Per raggiungere gli obiettivi prefissati, è stata ideata un'architettura di elaborazione in grado di trasformare documenti non strutturati in una rete di nodi interconnessi. L'approccio proposto si articola in una pipeline a più fasi: inizialmente, i documenti originali (principalmente in formato PDF) vengono processati tramite strumenti di parsing avanzati e OCR per estrarne accuratamente il testo e convertirlo in un formato intermedio (Markdown). Successivamente, un \textit{Large Language Model} analizza tale testo per riconoscerne la sintassi e la suddivisione gerarchica (Titoli, Capi, Articoli, Commi).
+Questi elementi vengono strutturati in formato JSON e iniettati all'interno del grafo, in cui ogni entità diventa un nodo e l'appartenenza a una data sezione diventa una relazione. Successivamente, i contenuti testuali vengono vettorializzati e salvati sotto forma di \textit{embedding}.
+In fase di interrogazione, il sistema non si limita a cercare la similarità matematica tra le frasi, ma naviga esplicitamente la topologia del grafo per ricostruire l'intero iter contestuale, fornendo al modello generativo un prompt documentato, ricco e strutturalmente coerente.
 
-\subsection*{Linguaggi di Programmazione}
-\begin{itemize}
-    \item \textbf{Python:} Scelto per la vastità e la potenza delle sue librerie, è stato il linguaggio cardine per la costruzione delle pipeline del progetto.
-\end{itemize}
+\section{Confronto con tecniche esistenti}
+Nel panorama attuale dell'Intelligenza Artificiale applicata all'elaborazione dei documenti, le tecniche di \textit{Information Retrieval} più diffuse si basano principalmente su \textit{Retrieval-Augmented Generation} (RAG) di tipo vettoriale. 
+Quest'ultima prevede tipicamente la suddivisione del documento in frammenti testuali di lunghezza fissa (\textit{chunking}), la loro vettorializzazione e il successivo recupero basato sulla distanza semantica rispetto alla query dell'utente.
 
-\subsection*{Strumenti per l'Estrazione del Testo}
-\begin{itemize}
-   \item \textbf{Open Data Loader:} Una libreria open-source scelta per la sua capacità di estrarre testo in modo \textit{deterministico} da file PDF, convertendolo direttamente in Markdown.
-    \item \textbf{Docling:} Una libreria open-source di parsing e analisi del layout documentale, specializzato nell'estrazione precisa di testo, tabelle e metadati strutturati a partire da formati complessi come i PDF. Integrato come supporto di Open Data Loader.
-    \item \textbf{RapidOCR:} Modulo impiegato per estrarre testo dai documenti derivanti da scansioni visive.
-    Tra i vari motori OCR disponibili, è stato optato l'uso di questo specifico OCR che si è rivelato il compromesso più efficace per bilanciare i tempi di esecuzione e l'elevato consumo di RAM del container.
-\end{itemize}
-
-\subsection*{Database e Linguaggi di Interrogazione}
-\begin{itemize}
-    \item \textbf{Neo4j:} Il database a grafo principale utilizzato per mappare la rigida struttura gerarchica degli atti normativi e i nodi concettuali.
-Consente di gestire e navigare le relazioni in maniera altamente efficiente rispetto ai database relazionali tradizionali.
-    \item \textbf{Cypher:} Il linguaggio di interrogazione dichiarativo nativo di Neo4j, utilizzato per effettuare le query di inserimento e di ricerca topologica nel grafo.
-    \item \textbf{Qdrant:} Un database vettoriale utilizzato sperimentalmente per condurre test e confronti sulle performance della ricerca semantica (\textit{Cosine Similarity}) rispetto all'approccio basato sui grafi.
-\end{itemize}
-
-\subsection*{LLM e Modelli di Embedding}
-\begin{itemize}
-    \item \textbf{Gemini 2.5-flash:} \textit{Large Language Model} utilizzato tramite API per il compito cruciale della strutturazione sintattica.
-    Riceveva in input il testo in formato Markdown dai PDF e restituiva JSON formattati rigorosamente secondo uno schema predefinito, che rappresentavano la gerarchia dei documenti normativi (Titoli, Capi, Articoli, Commi) e i nodi concettuali.
-    \item \textbf{Modelli di Embedding:} Sono stati testati svariati modelli per ottimizzare la vettorializzazione del testo legale in italiano. I test più approfonditi hanno coinvolto i seguenti modelli:
-    \begin{itemize}
-        \item \texttt{intfloat/multilingual-e5-large}
-        \item \texttt{google/gemini-embedding-001}
-        \item \texttt{google/embeddinggemma-300m}
-        \item \texttt{BAAI/bge-m3}
-    \end{itemize}
-    La valutazione si è basata sulla capacità di recuperare commi pertinenti a partire da query in linguaggio naturale.
-\end{itemize}
+Tuttavia, queste tecniche presentano lacune significative quando applicate al dominio giuridico della pubblica amministrazione. Un approccio RAG standard, estraendo un singolo \textit{chunk} isolato, perde inevitabilmente il perimetro normativo: ad esempio, potrebbe recuperare il comma di una legge senza specificare a quale Capo appartenga oppure omettendo dettagli cruciali come eventuali eccezioni specificate in altri paragrafi.
+L'approccio ibrido basato su \textit{Knowledge Graph} (spesso definito \textit{GraphRAG}) si rende pertanto strettamente \textbf{necessario}. Modellando esplicitamente le relazioni tra i componenti di una legge, esso supera i limiti del chunking piatto, consentendo di restituire un contesto normativo integro e affidabile. Questo aspetto è fondamentale per abbattere drasticamente le allucinazioni tipiche degli LLM e garantire l'assoluta affidabilità formale e legale delle risposte, un requisito imprescindibile per un software destinato agli operatori della PA.
 
 
-\subsection*{Deployment e Containerizzazione}
-\begin{itemize}
-    \item \textbf{Docker:} L'intero ecosistema è stato modularizzato attraverso lo sviluppo di container isolati e specifici. Questa scelta ha garantito un'elevata modularità, l'isolamento delle dipendenze software e un rigoroso controllo sulle risorse computazionali, specialmente durante i task più onerosi legati all'\textit{Optical Character Recognition (OCR)} e alla \textit{generazione degli Embedding}.
-\end{itemize}
+\section{Struttura della tesi}
+Il presente elaborato è organizzato in cinque capitoli, di seguito brevemente introdotti.
+
+Il \textbf{Capitolo 2 — Tecnologie utilizzate} fornisce una panoramica dello stack tecnologico adottato: dai linguaggi di programmazione agli strumenti di parsing e OCR per l'estrazione del testo, passando per i database a grafo e vettoriali (Neo4j e Qdrant), fino ai modelli di linguaggio e di embedding impiegati per la strutturazione semantica e la vettorializzazione dei contenuti normativi.
+
+Il \textbf{Capitolo 3 — Architettura del Sistema} illustra l'architettura complessiva del sistema, descrivendo i componenti principali e il flusso di dati attraverso le diverse fasi della pipeline: dall'acquisizione dei documenti grezzi fino all'interrogazione da parte degli utenti finali.
+
+Il \textbf{Capitolo 4 — Implementazione Software} approfondisce nel dettaglio le singole fasi della pipeline di elaborazione: l'estrazione del testo dai documenti PDF, la strutturazione gerarchica operata dai Large Language Models, l'ingestion dei dati strutturati su Neo4j e Qdrant e  la creazione degli embedding per la ricerca semantica.
+
+Il \textbf{Capitolo 5 — Ricerca Semantica Vettoriale} presenta il setup sperimentale, le metriche di valutazione adottate e i risultati ottenuti con l'approccio di ricerca puramente vettoriale sia su Neo4j che su Qdrant.
+
+Il \textbf{Capitolo 6 — Ricerca Semantica con Grafo} analizza i risultati del confronto tra l'approccio basato sul grafo e quello puramente vettoriale, evidenziando le differenze in termini di performance ed efficacia nella restituzione del contesto normativo.

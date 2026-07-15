@@ -6,7 +6,7 @@ Poiché l'architettura di sistema prevede l'ingestione di questi documenti all'i
 
 \subsection{Il Modello e la Strategia di Generazione}
 
-Per affrontare il compito cruciale della strutturazione sintattica, è stato impiegato il Large Language Model \texttt{Gemini 2.5-flash}. A livello di architettura software, il processo è diviso in due step distinti: la generazione di una struttura JSON gerarchica e l'estrazione delle relazioni semantiche tra le entità legali.
+Per affrontare il compito cruciale della strutturazione sintattica, è stato impiegato il Large Language Model \texttt{Gemini 3.5 Flash}. A livello di architettura software, il processo è diviso in due step distinti: la generazione di una struttura JSON gerarchica e l'estrazione delle relazioni semantiche tra le entità legali.
 
 \subsection{Generazione della Struttura Gerarchica}
 
@@ -31,7 +31,7 @@ L'esecuzione di questo processo restituisce una directory di documenti JSON puli
 \subsection{Estrazione delle Relazioni Semantiche}
 
 La sola scomposizione del testo normativo in una struttura gerarchica ad albero rappresenta una condizione necessaria ma non sufficiente per la costruzione di un vero e proprio \textit{Knowledge Graph}. Per sfruttare appieno la potenza topologica di un database a grafo come Neo4j, è indispensabile individuare e mappare esplicitamente i collegamenti e le dipendenze logiche che intercorrono tra le diverse disposizioni giuridiche all'interno dello stesso atto. A questo scopo, la pipeline prevede un secondo step logico interamente dedicato all'estrazione delle relazioni semantiche.
-In questa fase, l'input non è più il testo grezzo, ma i file JSON prodotti nello step precedente, che quindi agiscono come una base di conoscenza consolidata. Ciascun documento viene quindi analizzato dal LLM \texttt{Gemini 2.5-flash}, guidato da un \textit{System Prompt} specializzato. Tale prompt è stato progettato per riconoscere i costrutti linguistici del gergo giuridico che indicano un collegamento formale tra le parti del testo. Le relazioni estratte sono:
+In questa fase, l'input non è più il testo grezzo, ma i file JSON prodotti nello step precedente, che quindi agiscono come una base di conoscenza consolidata. Ciascun documento viene quindi analizzato dal LLM \texttt{Gemini 3.5 Flash}, guidato da un \textit{System Prompt} specializzato. Tale prompt è stato progettato per riconoscere i costrutti linguistici del gergo giuridico che indicano un collegamento formale tra le parti del testo. Le relazioni estratte sono:
 \begin{itemize}
     \item \textbf{CITA:} Un articolo o comma fa riferimento a un'altra disposizione.
     \item \textbf{ABROGA:} Una disposizione annulla la validità giuridica di un'altra.

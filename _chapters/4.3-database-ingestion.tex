@@ -5,7 +5,7 @@ Una volta completata la strutturazione dei documenti legali in formato JSON, si 
 
 L'uso di due database consente di sperimentare l'uso di entrambi i paradigmi di memorizzazione sullo stesso dominio normativo, al fine di valutarne i rispettivi punti di forza, analizzare le performance e far emergere differenze qualitative e quantitative nelle fasi di interrogazione e navigazione dei testi legali.
 
-Per garantire la coesistenza flessibile di queste due tecnologie e favorire un ambiente di sviluppo pulito e modulare, lo sviluppo del software ha visto l'applicazione combinata di due noti design pattern software: lo \textit{Strategy Pattern} e il \textit{Repository Pattern}.
+Per garantire la coesistenza flessibile di queste due tecnologie e favorire un ambiente di sviluppo pulito e modulare, lo sviluppo del software ha visto l'applicazione combinata di due noti design pattern software\cite{design-patterns}: lo \textit{Strategy Pattern} e il \textit{Repository Pattern}.
 
 \subsection{I Modelli di Dominio}
 Prima di analizzare le strategie di persistenza, è fondamentale descrivere come i dati estratti vengano rappresentati in memoria. All'interno della cartella \texttt{models} di questo step, il sistema definisce le entità fondamentali del dominio normativo utilizzando il paradigma ad oggetti. Queste classi operano essenzialmente come \textit{Entities}: strutture dati pure, prive di logica di persistenza diretta o dipendenze verso i DBMS, il cui unico scopo è incapsulare i dati e preservare i vincoli di integrità del dominio.
@@ -64,6 +64,8 @@ Il metodo che si occupa di questa operazione attraverso i \texttt{custom\_id} de
 }
 \end{lstlisting}
 
+? INSERIRE ANCHE QUERY CYPHER ?
+
 
 \subsection{Dettagli Implementativi dell'Ingestion su Qdrant}
 La strategia implementata nella classe \texttt{QdrantImporter} risponde a logiche radicalmente differenti rispetto a quelle dei database a grafo, dettate dai vincoli operativi dei database vettoriali e dalle necessità algoritmiche della ricerca semantica. Qdrant, infatti, non supporta nativamente strutture gerarchiche ramificate, ma organizza le informazioni in collezioni di vettori piatti denominati \textit{Points}.
@@ -77,7 +79,7 @@ Il fulcro del processo di ingestion in Qdrant risiede nell'operazione di appiatt
 \end{itemize}
 Tutte le informazioni così raccolte vengono infine aggregate e inserite all'interno del dizionario di metadati del punto vettoriale, denominato \textbf{\textit{Payload}}
 
-\begin{lstlisting}[language=json, caption={Esempio reale di un Point vettoriale su Qdrant con Payload}, label={lst:qdrant-payload}, breaklines=true]
+\begin{lstlisting}[caption={Esempio reale di un Point vettoriale su Qdrant con Payload}, label={lst:qdrant-payload}, breaklines=true]
 {
   "id": "00020dff-edff-51b8-b2fb-a953ed7e5c0e",
   "payload": {
@@ -95,7 +97,7 @@ Tutte le informazioni così raccolte vengono infine aggregate e inserite all'int
 \end{lstlisting}
 
 \vspace{1em}
-\subsection{Risultati e Metriche}
+\subsection{Risultati e Metriche (DA AGGIORNARE)}
 Al termine delle procedure di ingestion sui documenti dell'Ente Provincia di Taranto, è stato possibile raccogliere i dati quantitativi relativi ai tempi di esecuzione e ai volumi di record inseriti per entrambi i database.
 
 I log di sistema hanno registrato le metriche riassunte nella Tabella~\ref{tab:ingestion_metrics}.

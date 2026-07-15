@@ -1,4 +1,4 @@
-\chapter{Ricerca Semantica}\label{chap:semantic-search}
+\chapter{Ricerca Semantica}\label{chap:fifth}
 
 \inlineminitoc
 
@@ -16,7 +16,7 @@ La capacità di recupero del sistema è stata analizzata variando la soglia dei 
 Ai fini della sperimentazione, sono state impostate soglie di \texttt{Top-K} pari a 10, 5, 3 e 1. Tale approccio a soglie decrescenti ha lo scopo di misurare con quale frequenza percentuale il singolo comma atteso rientri nelle prime \texttt{K} posizioni del ranking. In uno scenario ideale, il sistema dovrebbe essere in grado di posizionare la risposta corretta sempre al primo posto (\texttt{Top-1}), tuttavia, analizzare soglie più ampie permette di valutare se il sistema riesce comunque a confinare l'informazione corretta all'interno di un sottoinsieme ristretto di commi.
 
 \subsection{Allineamento delle strategie di ricerca: ANN vs Exact k-NN}
-Durante i test preliminari per l'esecuzione della ricerca, è emersa una differenza sostanziale nel comportamento predefinito dei due database. Neo4j applicava di default algoritmi di ricerca approssimata (\textit{Approximate Nearest Neighbors} o ANN), i quali privilegiano la velocità ma introducono un margine di errore che ha portato, in alcuni casi, alla mancata estrazione di commi pertinenti. Al contrario Qdrant, essendo un database vettoriale puro, adottava nativamente una strategia di scansione esatta per dataset di dimensioni contenute (inferiori ai 20.000 record).
+Durante i test preliminari per l'esecuzione della ricerca, è emersa una differenza sostanziale nel comportamento predefinito dei due database. Neo4j applicava di default algoritmi di ricerca approssimata (\textit{Approximate Nearest Neighbors} o ANN)\cite{vector-search}, i quali privilegiano la velocità ma introducono un margine di errore che ha portato, in alcuni casi, alla mancata estrazione di commi pertinenti. Al contrario Qdrant, essendo un database vettoriale puro, adottava nativamente una strategia di scansione esatta per dataset di dimensioni contenute (inferiori ai 20.000 record).
 
 Al fine di garantire un confronto prestazionale equo tra i modelli e tra le due soluzioni di storage, la configurazione di ricerca è stata uniformata forzando l'esecuzione in modalità di ricerca esaustiva (\textit{Exact k-NN}) su entrambi i database. Questa scelta ha permesso di misurare con assoluta precisione matematica il piazzamento delle risposte, annullando le discrepanze che sarebbero state introdotte dagli algoritmi di approssimazione.
 
