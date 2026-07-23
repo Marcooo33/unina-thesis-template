@@ -1,1 +1,40 @@
-DA RISCRIVERE DA CAPO
+\section{Creazione degli Embedding}
+\label{sec:creazione_embedding}
+
+L'operazione di vettorizzazione, o di \textit{embedding}, rappresenta un passaggio cruciale per abilitare le funzionalità di ricerca semantica all'interno del database a grafo.
+La pipeline supporta tre modelli di embedding, dettagliati in \autoref{sec:llm_embedding_models}: 
+\begin{itemize}
+    \item \texttt{google/embeddinggemma-300m}
+    \item \texttt{perplexity-ai/pplx-embed-v1-0.6b}
+    \item \texttt{perplexity-ai/pplx-embed-context-v1-0.6b}
+\end{itemize}
+
+I vettori vengono archiviati direttamente come proprietà all'interno dei nodi (\texttt{:Paragraph}) già esistenti nel grafo. Questo evita la necessità di un database vettoriale separato e consente al modello di ricerca di operare direttamente su Neo4j.
+
+Neo4j, inoltre, supporta la creazione di indici vettoriali utilizzando algoritmi di ricerca approssimata (\textit{Approximate Nearest Neighbor Search}, ANN). Invece di calcolare la distanza coseno tra il vettore di query e tutti gli altri vettori (operazione $O(n)$ molto costosa), questi indici riducono drasticamente lo spazio di ricerca. Di conseguenza, il tempo di esecuzione delle query passa da secondi a millisecondi, rendendo la ricerca praticabile anche su documenti normativi di grandi volumi.
+
+\subsection{Differenza nell'Arricchimento Contestuale: Standard vs Late Chunking}
+\label{subsec:arricchimento_contestuale}
+ 
+Il sistema implementa due approcci diversi per fornire \textit{contesto} ai commi. Se si fornisce al modello solo la stringa del comma \textquote{È punito con la reclusione da 1 a 3 anni}, l'embedding sarà di scarsa qualità perché manca il soggetto e l'argomento (definiti nell'articolo o titolo).
+ 
+Ecco come le due metodologie risolvono il problema:
+ 
+\subsubsection{A. Arricchimento Standard (Modelli: Gemma 300m e PPLX-v1)}
+ 
+In questo approccio, il contesto viene iniettato testualmente attraverso \textit{String Concatenation}.
+Per ciascun comma, viene recuperato il contesto gerarchico risalendo l'albero strutturale (articolo, capitolo, titolo, atto) tramite query Cypher. Tutte queste informazioni vengono concatenate in un'unica stringa, producendo un testo inviato al modello simile al seguente:
+
+\begin{center}
+    \texttt{\textquote{Atto: Costituzione | Titolo 1 | Art. 13 | Comma 1 | La libertà personale è inviolabile.}}
+\end{center}
+
+In questo approccio, ogni comma viene trattato come un \textit{chunk isolato} al momento dell'embedding. Sebbene il modello riceva il testo arricchito dai metadati gerarchici, il contesto rimane limitato a questo preambolo testuale statico.
+ 
+\subsubsection{B. Arricchimento tramite Late Chunking (Modello: PPLX-Context)}
+ 
+Questo approccio impiega una vera e propria contestualizzazione a livello di rete neurale. A differenza dell'approccio standard, non utilizza preamboli testuali pre-calcolati, ma affida la comprensione semantica all'algoritmo di \textit{self-attention} del modello.
+
+Il sistema recupera dal database, tramite query Cypher, l'intero articolo con tutti i commi che lo compongono, mantenendo traccia dell'ordine sequenziale tra di essi. Invece di inviare al modello i commi singolarmente, il sistema li presenta come un'unica sequenza ordinata.
+
+Il modello processa l'intero articolo permettendo ai token di ciascun comma di interagire semanticamente con i token dei commi adiacenti tramite il meccanismo di self-attention. Solo al termine di questo processo, il modello estrae e restituisce i singoli vettori per ciascun comma. Questa tecnica, nota come \textit{late chunking}, cattura il significato globale dell'articolo pur mantenendo la precisione a livello di comma.

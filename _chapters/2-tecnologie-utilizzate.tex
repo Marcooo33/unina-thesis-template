@@ -44,7 +44,7 @@ La duplice natura del problema — da un lato la necessità di rappresentare rel
     \item \textbf{Cypher}\cite{cypher}: Il linguaggio di interrogazione dichiarativo nativo di Neo4j, utilizzato per effettuare le query di inserimento e di ricerca topologica nel grafo.
 \end{itemize}
 
-\section{LLM e Modelli di Embedding}
+\section{LLM e Modelli di Embedding}\label{sec:llm_embedding_models}
 Il cuore intelligente del sistema risiede nei modelli di linguaggio e di embedding, responsabili rispettivamente della strutturazione semantica dei documenti e della loro vettorializzazione per la ricerca.
 
 \begin{itemize}
@@ -57,12 +57,13 @@ Il cuore intelligente del sistema risiede nei modelli di linguaggio e di embeddi
 
     \item \textbf{Modelli di Embedding:} La vettorializzazione del testo normativo rappresenta un elemento critico per la qualità della ricerca semantica. Sono stati testati molteplici modelli per identificare la soluzione più efficace nel dominio giuridico italiano. I test più approfonditi hanno coinvolto i seguenti modelli:
     \begin{itemize}
-        \item \texttt{intfloat/multilingual-e5-large}\cite{multilingual-e5-large}: Modello multilingue di grandi dimensioni, scelto per la sua comprovata efficacia su benchmark multilingue. Supporta oltre 100 lingue e utilizza un approccio di embedding basato su prompt-template, che consente di adattare la rappresentazione vettoriale al tipo di task (query vs. documento).
-        \item \texttt{google/gemini-embedding-001}\cite{gemini-embedding}: Modello proprietario di Google, testato per valutare i benefici dell'integrazione nativa con l'ecosistema Gemini e per la sua capacità di produrre embedding di alta qualità ottimizzati per task di retrieval.
-        \item \texttt{google/embeddinggemma-300m}\cite{embeddinggemma}: Modello compatto da 300 milioni di parametri basato sull'architettura Gemma. È stato incluso nella sperimentazione per valutare il trade-off tra dimensione del modello e qualità degli embedding, particolarmente rilevante in scenari di deployment con risorse limitate.
-        \item \texttt{BAAI/bge-m3}\cite{bge-m3}: Modello stato dell'arte sviluppato da BAAI, specificamente progettato per supportare embedding multilingue, multi-funzionali (dense, sparse, multi-vector) e multi-granulari. La sua capacità di gestire testi lunghi fino a 8192 token lo rende particolarmente adatto ai documenti normativi, dove i commi possono estendersi per diverse centinaia di parole.
-    \end{itemize}
-    La valutazione si è basata sulla capacità di ciascun modello di recuperare i commi pertinenti a partire da query in linguaggio naturale, misurata attraverso metriche standard di Information Retrieval quali \textit{Precision@k}, \textit{Recall@k} e \textit{Mean Reciprocal Rank} (MRR).
+        \item \textbf{\texttt{google/embeddinggemma-300m}:} Modello sviluppato da Google che trasforma il testo in vettori a 768 dimensioni. È costruito sull'architettura Gemma 3 ed è addestrato su oltre 100 lingue. Una caratteristica distintiva è la possibilità di ridurre le dimensioni del vettore finale (a 512, 256 o 128) senza perdere qualità, rendendolo particolarmente efficiente su dispositivi con risorse limitate.
+        
+        \item \textbf{\texttt{perplexity-ai/pplx-embed-v1-0.6b}:} Modello sviluppato da Perplexity AI che trasforma il testo in vettori a 1024 dimensioni, maggiori rispetto a Gemma per catturare più sfumature semantiche. È ottimizzato per applicazioni pratiche come ricerca semantica e sistemi RAG. Gli embeddings sono compressi in formato compatto (INT8), riducendo lo spazio di archiviazione necessario senza perdita significativa di qualità.
+        
+        \item \textbf{\texttt{perplexity-ai/pplx-embed-context-v1-0.6b}:} Variante contestuale del modello Perplexity, anch'esso produce vettori a 1024 dimensioni. La differenza principale è che questo modello è addestrato per comprendere il \textit{contesto} di un documento: quando processa i chunk, considera anche il resto del documento, non solo il frammento isolato. Questo lo rende più adatto per sistemi RAG dove il significato dei frammenti dipende dal contesto circostante. Questa tecnica è nota come \textit{Late Chunking} e permette di ottenere rappresentazioni più ricche e accurate dei frammenti di testo.
+\end{itemize}
+    La valutazione si è basata sulla capacità di ciascun modello di recuperare i commi pertinenti a partire da query in linguaggio naturale, misurata attraverso metriche standard di Information Retrieval quali \textit{Precision@k}, e \textit{Mean Reciprocal Rank} (MRR).
 \end{itemize}
 
 \section{Deployment e Containerizzazione}
