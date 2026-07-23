@@ -6,7 +6,7 @@ Per far fronte alle sfide di estrazione, elaborazione, archiviazione e interroga
     \item \textbf{Python}\cite{python}: È stato il linguaggio cardine per la costruzione dell'intera pipeline del progetto. La scelta è ricaduta su Python per diverse ragioni:
     \begin{itemize}
         \item \textbf{Ecosistema dedicato ai modelli linguistici:} Python dispone di librerie mature e ampiamente supportate come \texttt{sentence-transformers} e \texttt{huggingface-hub}, che hanno permesso di integrare agevolmente i modelli di embedding e i workflow di Retrieval-Augmented Generation senza dover reimplementare componenti di basso livello.
-        \item \textbf{Integrazione con i database:} I driver ufficiali per Neo4j e Qdrant offrono API Python native, ben documentate e performanti, eliminando la necessità di adattatori o wrapper di terze parti.
+        \item \textbf{Integrazione con i database:} Il driver ufficiale per Neo4j offre API Python native, ben documentate e performanti, eliminando la necessità di adattatori o wrapper di terze parti.
     \end{itemize}
 \end{itemize}
 
@@ -18,7 +18,6 @@ La fase di estrazione ha dovuto confrontarsi con documenti PDF eterogenei: alcun
     \begin{itemize}
         \item \textbf{Determinismo:} A differenza di approcci basati su modelli probabilistici, Open Data Loader estrae il testo in modo deterministico, garantendo riproducibilità e coerenza dei risultati — un requisito indispensabile nel dominio legale, dove ogni modifica del testo estratto tra un'esecuzione e l'altra minerebbe la fiducia nel sistema.
         \item \textbf{Conversione diretta in Markdown:} Il Markdown si rivela un formato testuale ottimale per i LLM. La sua sintassi leggera preserva fedelmente la struttura logica del documento originale, fornendo al modello un contesto già strutturato che riduce significativamente gli errori nella successiva fase di parsing gerarchico.
-        
     \end{itemize}
 
     \item \textbf{Docling}\cite{docling}: Libreria specializzata nell'analisi del layout documentale e nell'estrazione di contenuti strutturati. È stata integrata come supporto complementare a Open Data Loader per la gestione di PDF più complessi: supporta documenti multi-colonna, tabelle e layout non lineari, frequenti negli atti della pubblica amministrazione.
@@ -32,7 +31,7 @@ La fase di estrazione ha dovuto confrontarsi con documenti PDF eterogenei: alcun
 \end{itemize}
 
 \section{Scelta dei Database}
-La duplice natura del problema — da un lato la necessità di rappresentare relazioni gerarchiche complesse, dall'altro l'esigenza di una ricerca semantica efficiente — ha portato all'adozione di due database complementari, ciascuno ottimizzato per uno specifico paradigma di interrogazione.
+La duplice natura del problema — da un lato la necessità di rappresentare relazioni gerarchiche complesse, dall'altro l'esigenza di una ricerca semantica efficiente — ha portato all'adozione di un database a grafo specializzato, affiancato dallo studio di metodologie di ricerca vettoriale classica basata su \textit{cosine similarity}.
 
 \begin{itemize}
     \item \textbf{Neo4j:} Il database a grafo scelto come storage principale per la base di conoscenza normativa. La decisione di adottare un database a grafo anziché un tradizionale database relazionale è motivata da considerazioni sia modellistiche che prestazionali:
@@ -43,12 +42,6 @@ La duplice natura del problema — da un lato la necessità di rappresentare rel
     \end{itemize}
 
     \item \textbf{Cypher}\cite{cypher}: Il linguaggio di interrogazione dichiarativo nativo di Neo4j, utilizzato per effettuare le query di inserimento e di ricerca topologica nel grafo.
-
-    \item \textbf{Qdrant}\cite{qdrant}: Database vettoriale scritto in Rust, impiegato come termine di paragone sperimentale per valutare l'efficacia dell'approccio basato su grafo. La scelta è stata motivata da:
-    \begin{itemize}
-        \item \textbf{Performance elevate:} Implementato in Rust, Qdrant offre operazioni di ricerca per similarità estremamente veloci anche su collezioni di grandi dimensioni.
-        \item \textbf{Confronto metodologico:} L'utilizzo di Qdrant ha permesso di isolare il contributo della topologia del grafo rispetto alla pura similarità semantica, quantificando il vantaggio dell'approccio GraphRAG in termini di pertinenza e completezza dei risultati.
-    \end{itemize}
 \end{itemize}
 
 \section{LLM e Modelli di Embedding}

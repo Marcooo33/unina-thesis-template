@@ -2,7 +2,7 @@
 \label{sec:strutturazione_semantica}
 
 Una volta ultimata la fase di estrazione del testo grezzo, illustrata nella sezione precedente, i documenti normativi si presentano sotto forma di file testuali piatti in formato Markdown. Tali file, pur contenendo l'intero testo originale, sono del tutto privi di metadati strutturali e di una formattazione gerarchica chiara. 
-Poiché l'architettura di sistema prevede l'ingestione di questi documenti all'interno di un database a grafo (Neo4j) e in un database vettoriale (Qdrant), risulta indispensabile trasformare il testo non strutturato in una gerarchia rigorosa. L'archiviazione del solo testo grezzo, infatti, risulterebbe del tutto inadeguata e priva di utilità pratica. Una strutturazione accurata rappresenta il prerequisito fondamentale per abilitare qualsiasi operazione avanzata di \textit{information retrieval}, garantendo che i dati possano essere interrogati in modo efficiente e contestuale.
+Poiché l'architettura di sistema prevede l'ingestione di questi documenti all'interno di un database a grafo (Neo4j) al fine di confrontare la navigazione topologica con la classica ricerca vettoriale basata su \textit{cosine similarity}, risulta indispensabile trasformare il testo non strutturato in una gerarchia rigorosa. L'archiviazione del solo testo grezzo, infatti, risulterebbe del tutto inadeguata e priva di utilità pratica. Una strutturazione accurata rappresenta il prerequisito fondamentale per abilitare qualsiasi operazione avanzata di \textit{information retrieval}, garantendo che i dati possano essere interrogati in modo efficiente e contestuale.
 
 \subsection{Il Modello e la Strategia di Generazione}
 

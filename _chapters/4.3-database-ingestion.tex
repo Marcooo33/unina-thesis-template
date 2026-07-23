@@ -1,11 +1,9 @@
 \section{Importazione dati nei Database}
 \label{sec:database_ingestion}
 
-Una volta completata la strutturazione dei documenti legali in formato JSON, si apre la fase di persistenza e indicizzazione dei dati all'interno dei databse. Nel contesto di questo progetto di tirocinio, l'architettura prevede il caricamento dei dati estratti all'interno di due distinte tipologie di database: Neo4j, un database a grafo, e Qdrant, un database vettoriale.
+Una volta completata la strutturazione dei documenti legali in formato JSON, si apre la fase di persistenza e indicizzazione dei dati. Nel contesto di questo progetto di tirocinio, l'architettura prevede il caricamento dei dati estratti all'interno del database a grafo Neo4j.
 
-L'uso di due database consente di sperimentare l'uso di entrambi i paradigmi di memorizzazione sullo stesso dominio normativo, al fine di valutarne i rispettivi punti di forza, analizzare le performance e far emergere differenze qualitative e quantitative nelle fasi di interrogazione e navigazione dei testi legali.
-
-Per garantire la coesistenza flessibile di queste due tecnologie e favorire un ambiente di sviluppo pulito e modulare, lo sviluppo del software ha visto l'applicazione combinata di due noti design pattern software\cite{design-patterns}: lo \textit{Strategy Pattern} e il \textit{Repository Pattern}.
+Per garantire la flessibilità nell'applicazione di queste logiche di indicizzazione e favorire un ambiente di sviluppo pulito e modulare, lo sviluppo del software ha visto l'applicazione del \textit{Repository Pattern} e l'uso di interfacce polimorfiche.
 
 \subsection{I Modelli di Dominio}
 Prima di analizzare le strategie di persistenza, è fondamentale descrivere come i dati estratti vengano rappresentati in memoria. All'interno della cartella \texttt{models} di questo step, il sistema definisce le entità fondamentali del dominio normativo utilizzando il paradigma ad oggetti. Queste classi operano essenzialmente come \textit{Entities}: strutture dati pure, prive di logica di persistenza diretta o dipendenze verso i DBMS, il cui unico scopo è incapsulare i dati e preservare i vincoli di integrità del dominio.
@@ -26,23 +24,24 @@ L'architettura dei modelli rispecchia fedelmente la scomposizione gerarchica del
 \end{figure}
 
 
-\subsection{Disaccoppiamento della Persistenza: Lo Strategy Pattern}
-L'esigenza di effettuare una doppia ingestion prima su Neo4j e poi su Qdrant senza dover duplicare la logica di orchestrazione o modificare il flusso principale del programma ha reso naturale l'adozione del design pattern \textit{Strategy}. Questo pattern comportamentale definisce una famiglia di algoritmi, ne incapsula ciascuno all'interno di una classe e li rende tra loro intercambiabili, consentendo all'algoritmo di variare indipendentemente dai client che lo utilizzano.
+\subsection{Disaccoppiamento della Persistenza: Interfacce e Polimorfismo}
+L'adozione di un'interfaccia comune di importazione nasce dalla precisa volontà di disaccoppiare la logica di orchestrazione e lettura dei dati dalla loro effettiva persistenza fisica.
+Sebbene l'attuale implementazione preveda l'utilizzo esclusivo del database a grafo Neo4j, questa scelta architetturale si rivela strategica per sviluppi futuri. Qualora si rendesse necessario integrare nuovi DBMS (ad esempio, un database puramente vettoriale dedicato esclusivamente agli embedding), sarà sufficiente implementare una nuova classe concreta senza dover alterare il flusso principale del programma. Inoltre, il disaccoppiamento garantisce un'elevata testabilità del codice, permettendo di validare la logica di dominio e il parsing dei documenti simulando le operazioni di salvataggio indipendentemente dal database sottostante.
 
-Nel sistema sviluppato, l'interfaccia astratta di riferimento è rappresentata dalla classe \texttt{DBImporterStrategy}. Essa definisce tre metodi fondamentali che ogni classe concreta deve implementare:
+Nel sistema sviluppato, l'interfaccia astratta di riferimento è rappresentata dalla classe \texttt{DBImporterInterface}. Essa definisce tre metodi fondamentali che ogni classe concreta deve implementare:
 \begin{itemize}
     \item \texttt{connect()}: per la gestione e la validazione della connessione con l'istanza specifica del database;
     \item \texttt{import\_legal\_act(entity, legal\_act)}: per l'esecuzione materiale della logica di Ingestion dell'atto normativo e dei metadati dell'ente emittente;
     \item \texttt{close()}: per la chiusura sicura delle sessioni.
 \end{itemize}
 
-Nello script principale \texttt{main.py}, il ciclo di esecuzione batch istanzia dinamicamente l'oggetto concreto (\texttt{Neo4jImporter} o \texttt{QdrantImporter}) a seconda della configurazione desiderata. Questa architettura estendibile riduce a zero l'accoppiamento e semplifica future implementazioni con ulteriori database.
+Nello script principale \texttt{main.py}, il ciclo di esecuzione batch istanzia dinamicamente l'oggetto concreto, delegando a quest'ultimo i dettagli tecnici dell'inserimento. Questa architettura estendibile riduce a zero l'accoppiamento tra il livello applicativo e l'infrastruttura dati.
 
 
 \subsection{Modalità di Accesso ai Dati: Il Repository Pattern}
-Se lo \textit{Strategy Pattern} isola i database nella loro interezza rispetto all'orchestrazione principale, il \textit{Repository Pattern} interviene specificamente all'interno dell'architettura di persistenza dei database per mediare tra lo strato dei modelli di dominio e lo strato di accesso ai dati fisici. 
-L'obiettivo principale del Repository Pattern è centralizzare la logica di costruzione ed esecuzione delle query, offrendo al client un'interfaccia astratta per poter salvare i dati nei database.
-In questo modo, l'importer concreto delega l'interazione fisica con il database ai singoli repository, i quali ricevono l'oggetto di dominio da persistere, nascondendo completamente i dettagli delle implementazioni delle query.
+Se l'interfaccia di importazione isola le strategie nella loro interezza rispetto all'orchestrazione principale, il \textit{Repository Pattern} interviene specificamente all'interno dell'architettura di persistenza dei database per mediare tra lo strato dei modelli di dominio e lo strato di accesso ai dati fisici. 
+L'obiettivo principale del Repository Pattern è centralizzare la logica di costruzione ed esecuzione delle query, offrendo al client un'interfaccia astratta per poter salvare i dati.
+In questo modo, l'importer concreto delega l'interazione alle singole repository, le quali ricevono l'oggetto di dominio da persistere, nascondendo completamente i dettagli delle implementazioni delle query.
 
 \subsection{Dettagli Implementativi dell'Ingestion su Neo4j}
 Nel contesto di Neo4j, un atto legale non può essere salvato tramite un'unica operazione atomica standard, a causa delle profonde interconnessioni tra i nodi della gerarchia. Anziché concentrare la scrittura di stringhe Cypher complesse all'interno della classe \texttt{Neo4jImporter}, la responsabilità è stata distribuita su una serie di repository specializzati, ognuno deputato alla gestione del ciclo di vita di un singolo modello di dominio:
@@ -66,56 +65,5 @@ Il metodo che si occupa di questa operazione attraverso i \texttt{custom\_id} de
 
 ? INSERIRE ANCHE QUERY CYPHER ?
 
-
-\subsection{Dettagli Implementativi dell'Ingestion su Qdrant}
-La strategia implementata nella classe \texttt{QdrantImporter} risponde a logiche radicalmente differenti rispetto a quelle dei database a grafo, dettate dai vincoli operativi dei database vettoriali e dalle necessità algoritmiche della ricerca semantica. Qdrant, infatti, non supporta nativamente strutture gerarchiche ramificate, ma organizza le informazioni in collezioni di vettori piatti denominati \textit{Points}.
-
-Il fulcro del processo di ingestion in Qdrant risiede nell'operazione di appiattimento (\textit{flattening}) della struttura ad albero dell'atto normativo, la quale è stata configurata secondo tre fasi logiche:
-
-\begin{itemize}
-    \item \textbf{Identificazione dell'unità fondamentale:} L'unità minima di indicizzazione viene individuata nel modello \texttt{Paragraph} (il singolo comma). Questa porzione di testo rappresenta il compromesso ottimale per bilanciare la granularità informativa e la focalizzazione semantica del modello di embedding.
-    \item \textbf{Il problema del contesto assoluto:} Memorizzare un comma in modo isolato causerebbe una perdita critica di contesto, rendendo impossibile determinare a quale articolo o sezione appartenga il testo recuperato.
-    \item \textbf{Risoluzione tramite \textit{Tree-Climbing}:} Per preservare l'integrità strutturale, l'algoritmo esegue una procedura di risalita in memoria per ciascun comma. Partendo dall'elemento foglia (il comma), risale ricorsivamente la catena dei nodi padri, estraendo il numero e il titolo di ogni livello gerarchico attraversato (Articolo, Capo, Titolo).
-\end{itemize}
-Tutte le informazioni così raccolte vengono infine aggregate e inserite all'interno del dizionario di metadati del punto vettoriale, denominato \textbf{\textit{Payload}}
-
-\begin{lstlisting}[caption={Esempio reale di un Point vettoriale su Qdrant con Payload}, label={lst:qdrant-payload}, breaklines=true]
-{
-  "id": "00020dff-edff-51b8-b2fb-a953ed7e5c0e",
-  "payload": {
-    "p_id": "ente-provincia-taranto__regolamento-area-posizioni-organizzative-e-alte-professionalita__chapter-2__article-14__paragraph-1",
-    "text": "Il presente Regolamento entrera in vigore ad avvenuta pubblicazione del medesimo all'Albo Pretorio on-line nonche sul sito web ufficiale dell'Ente.",
-    "paragraph_num": "1",
-    "act_name": "Regolamento Area delle Posizioni Organizzative e delle Alte Professionalita.json",
-    "article_num": "14",
-    "article_name": "Entrata in vigore",
-    "chapter_num": "2",
-    "chapter_name": "Area delle Alte Professionalita"
-  },
-  "vector": [/* Rappresentazione numerica embedding testuale */]
-}
-\end{lstlisting}
-
-\vspace{1em}
 \subsection{Risultati e Metriche (DA AGGIORNARE)}
-Al termine delle procedure di ingestion sui documenti dell'Ente Provincia di Taranto, è stato possibile raccogliere i dati quantitativi relativi ai tempi di esecuzione e ai volumi di record inseriti per entrambi i database.
-
-I log di sistema hanno registrato le metriche riassunte nella Tabella~\ref{tab:ingestion_metrics}.
-
-\begin{table}[htbp]
-    \centering
-    \renewcommand{\arraystretch}{1.3}
-    \begin{tabular}{lcccc}
-        \hline
-        \textbf{Database} & \textbf{Totale Elementi} & \textbf{Commi Inseriti} & \textbf{Relazioni} & \textbf{Tempo (Ingestion)} \\
-        \hline
-        \textbf{Neo4j (Grafo)} & 3720 Nodi & 2763 & 4176 & \textbf{18.53 s} \\
-        \textbf{Qdrant (Vettoriale)} & 2763 Punti & 2763 & N/D (Flat) & \textbf{0.34 s} \\
-        \hline
-    \end{tabular}
-    \caption{Confronto metriche e tempi tra Neo4j e Qdrant.}
-    \label{tab:ingestion_metrics}
-\end{table}
-
-I risultati mettono in luce in modo evidente le notevoli differenze operative tra i due sistemi in fase di scrittura. La costruzione topologica di Neo4j richiede tempi di elaborazione maggiori a causa dei molteplici controlli sui vincoli di unicità e della creazione delle innumerevoli relazioni tra i nodi, mentre l'approccio "piatto" di Qdrant si dimostra estremamente rapido per il caricamento massivo dei vettori.
-
+INSERIRE METRICHE DI PERFORMANCE E RISULTATI DELL'INGESTION, TEMPI DI ESECUZIONE, NUMERO DI NODI E RELAZIONI INSERITI.

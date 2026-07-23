@@ -15,7 +15,7 @@ Al fine di superare i limiti esposti e dotare il sistema di solidi meccanismi pe
 \begin{enumerate}
     \item \textbf{Modellazione topologica e digitalizzazione:} Costruire una pipeline di inserimento per tradurre documenti legali non strutturati in un database a grafo (\textit{Neo4j}), definendo rigorosamente la mappatura delle relazioni che legano tra loro le sezioni della gerarchia normativa.
     \item \textbf{Semantic Search per il dominio giuridico:} Sviluppare il modulo di interrogazione intelligente del database e quantificare, mediante il testing di molteplici modelli di embedding, quale sia la soluzione più performante nel catturare la semantica intrinseca del linguaggio legale in lingua italiana.
-    \item \textbf{Analisi prestazionale degli approcci di Retrieval:} Integrare un database puramente vettoriale (\textit{Qdrant}) per poter eseguire un \textbf{confronto diretto}. L'obiettivo è misurare la differenza qualitativa delle risposte e confrontare le prestazioni fornite da un approccio di ricerca puramente vettoriale, rispetto a un'interrogazione che sfrutti anche la navigazione topologica sul grafo.
+    \item \textbf{Analisi prestazionale degli approcci di Retrieval:} Eseguire un \textbf{confronto diretto} per misurare la differenza qualitativa delle risposte e confrontare le prestazioni fornite da un approccio di ricerca puramente vettoriale, basato sulla \textit{cosine similarity}, rispetto a un'interrogazione che sfrutti attivamente la navigazione topologica sul grafo.
 \end{enumerate}
 
 \section{Descrizione dell'approccio}
@@ -34,12 +34,12 @@ L'approccio ibrido basato su \textit{Knowledge Graph} (spesso definito \textit{G
 \section{Struttura della tesi}
 Il presente elaborato è organizzato in cinque capitoli, di seguito brevemente introdotti.
 
-Il \textbf{Capitolo 2 — Tecnologie utilizzate} fornisce una panoramica dello stack tecnologico adottato: dai linguaggi di programmazione agli strumenti di parsing e OCR per l'estrazione del testo, passando per i database a grafo e vettoriali (Neo4j e Qdrant), fino ai modelli di linguaggio e di embedding impiegati per la strutturazione semantica e la vettorializzazione dei contenuti normativi.
+Il \textbf{Capitolo 2 — Tecnologie utilizzate} fornisce una panoramica dello stack tecnologico adottato: dai linguaggi di programmazione agli strumenti di parsing e OCR per l'estrazione del testo, passando per il database a grafo (Neo4j), fino ai modelli di linguaggio e di embedding impiegati per la strutturazione semantica e la vettorializzazione dei contenuti normativi.
 
 Il \textbf{Capitolo 3 — Architettura del Sistema} illustra l'architettura complessiva del sistema, descrivendo i componenti principali e il flusso di dati attraverso le diverse fasi della pipeline: dall'acquisizione dei documenti grezzi fino all'interrogazione da parte degli utenti finali.
 
-Il \textbf{Capitolo 4 — Implementazione Software} approfondisce nel dettaglio le singole fasi della pipeline di elaborazione: l'estrazione del testo dai documenti PDF, la strutturazione gerarchica operata dai Large Language Models, l'ingestion dei dati strutturati su Neo4j e Qdrant e  la creazione degli embedding per la ricerca semantica.
+Il \textbf{Capitolo 4 — Implementazione Software} approfondisce nel dettaglio le singole fasi della pipeline di elaborazione: l'estrazione del testo dai documenti PDF, la strutturazione gerarchica operata dai Large Language Models, l'ingestion dei dati strutturati su Neo4j e la creazione degli embedding per la ricerca semantica.
 
-Il \textbf{Capitolo 5 — Ricerca Semantica Vettoriale} presenta il setup sperimentale, le metriche di valutazione adottate e i risultati ottenuti con l'approccio di ricerca puramente vettoriale sia su Neo4j che su Qdrant.
+Il \textbf{Capitolo 5 — Ricerca Semantica Vettoriale} presenta il setup sperimentale, le metriche di valutazione adottate e i risultati ottenuti con l'approccio di ricerca puramente vettoriale basato sulla \textit{cosine similarity}.
 
 Il \textbf{Capitolo 6 — Ricerca Semantica con Grafo} analizza i risultati del confronto tra l'approccio basato sul grafo e quello puramente vettoriale, evidenziando le differenze in termini di performance ed efficacia nella restituzione del contesto normativo.
