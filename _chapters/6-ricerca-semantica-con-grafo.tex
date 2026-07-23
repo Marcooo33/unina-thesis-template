@@ -1,0 +1,94 @@
+\chapter{Ricerca Semantica Avanzata e Navigazione a Grafo}\label{chap:graph_search}
+
+\inlineminitoc
+
+\section{Modellazione dei Dati: Lo Schema Neo4j-Flat}
+Il passaggio verso un'architettura ibrida e il potenziamento della Graph Search Strategy hanno richiesto una strutturazione altamente ottimizzata dei dati. Il sistema si basa su uno schema definito "Neo4j-Flat", il quale sfrutta i plugin APOC e Graph Data Science (GDS). La differenza architetturale principale rispetto agli approcci standard risiede nel fatto che i vettori di embedding non sono salvati in nodi separati, ma sono memorizzati direttamente come proprietà all'interno dei nodi di testo.
+
+\subsection{Gerarchia Documentale e il Nodo Atomico}
+Il grafo modella in modo rigoroso la gerarchia documentale tipica degli atti normativi italiani. La struttura ad albero parte dal nodo \texttt{Entity} (l'ente istituzionale emittente), che si connette al \texttt{LegalAct} (l'atto normativo vero e proprio, come un contratto o un regolamento) tramite la relazione \texttt{ISSUES}. A cascata, la gerarchia si snoda attraverso i nodi \texttt{Title} (Titolo), \texttt{Chapter} (Capo) e \texttt{Article} (Articolo). 
+
+Il vertice operativo del database, nonché unità atomica dell'intero sistema RAG, è il nodo \textbf{\texttt{Paragraph}} (Comma). Ogni nodo di questa tipologia contiene il testo completo della norma e un \texttt{custom\_id} formato da una stringa gerarchica \textit{slug-based} (es. \texttt{ente\_\_atto\_\_title-1\_\_article-1\_\_paragraph-3}) che permette di tracciare l'esatta provenienza del frammento senza la necessità di ricalcolare costosi join o navigare il grafo a ritroso.
+
+\subsection{Relazioni Strutturali, Sequenziali e Giuridiche}
+La vera potenza del modello a grafo risiede nella ricchezza delle sue relazioni, le quali rendono possibile il recupero del contesto normativo esteso:
+\begin{itemize}
+    \item \textbf{Catena Sequenziale (\texttt{NEXT\_PARAGRAPH}):} Ogni comma è collegato al successivo formando una lista concatenata (\textit{linked list}) ordinata. Questa relazione permette agli algoritmi di navigare i commi precedenti e successivi in modo istantaneo per espandere la finestra di contesto di un risultato.
+    \item \textbf{Relazioni Semantico-Legali:} Il database codifica i riferimenti giuridici espliciti tra le norme tramite archi specifici. Tra questi spiccano \texttt{CITES} (per i rimandi normativi), \texttt{DEROGATES} (quando un comma sostituisce o annulla le disposizioni di un altro) e \texttt{INTERPRETS} (per l'interpretazione autentica). Tali archi abilitano la \textit{graph expansion} in fase di ricerca.
+\end{itemize}
+
+\section{Metodologia di Generazione e Strutturazione del Dataset di Test}
+
+Per valutare in modo rigoroso le performance e l'affidabilità del motore di ricerca ibrido sviluppato durante il periodo di tirocinio presso Infocube, è stato predisposto un dataset di validazione ad hoc composto da 100 query. Trattandosi di un'applicazione basata su documenti legali e normativi, la creazione di questo dataset ha dovuto tenere conto di due fattori critici: l'estrema variabilità linguistica degli utenti finali e il rischio di allucinazioni da parte del sistema in caso di informazioni mancanti.
+
+\subsection{Simulazione dei Profili Utente tramite Variazione della Temperatura}
+Al fine di misurare la reale flessibilità del sistema nel comprendere interrogazioni espresse con registri linguistici differenti, le domande del dataset sono state generate utilizzando un LLM, in particolare \texttt{Gemini 3 flash preview}, modulando il parametro della "temperatura". Nel contesto della generazione testuale, la temperatura agisce come un controllore della creatività e dello stile: variandola, è stato possibile alterare il lessico, la sintassi e il tono per simulare tre scenari di utilizzo realistici:
+
+\begin{itemize}
+    \item \textbf{Temperatura Bassa: 0.3 (Profilo Tecnico/Formale):} Simula le interrogazioni di un utente esperto del dominio, come un funzionario pubblico, un avvocato o un consulente. Le domande sono formali, estremamente strutturate e utilizzano la terminologia giuridica esatta.
+    \item \textbf{Temperatura Intermedia: 0.7 (Profilo Standard):} Rappresenta l'utente medio o il cittadino che cerca informazioni su un regolamento. Il linguaggio utilizzato è quello tipico di una conversazione educata, grammaticalmente corretta, ma priva di rigidi tecnicismi legali.
+    \item \textbf{Temperatura Alta: 1.0 (Profilo Informale/Colloquiale):} Costituisce un vero e proprio "stress-test" per il motore semantico. Questo livello simula un utente che adotta un registro destrutturato, colloquiale e talvolta impreciso. Lo scopo è verificare se l'architettura riesce a superare il forte divario semantico tra il linguaggio comune e il "legalese" presente nei documenti su Neo4j.
+\end{itemize}
+
+\subsection{Valutazione della Resilienza: La Gestione dei Falsi Positivi}
+La validazione di un sistema RAG (Retrieval-Augmented Generation) in ambito legale non può limitarsi a misurare la capacità di trovare i documenti corretti, ma deve accertare la sua robustezza contro le false inferenze. Per questo motivo, dei 100 quesiti totali, gli ultimi 15 sono stati deliberatamente indicati come "falsi positivi".
+
+Si tratta di interrogazioni "trabocchetto": domande che appaiono semanticamente e lessicalmente pertinenti al dominio giuridico trattato e all'ente di riferimento, ma la cui risposta \textit{non è presente} all'interno del database Neo4j. 
+
+L'obiettivo di questo sottoinsieme è testare i filtri di sicurezza del sistema (come il modulo di Reranking). Un motore di ricerca affidabile non deve forzare il recupero del documento meno dissimile pur di fornire un output, col rischio di generare "allucinazioni" e fornire informazioni inesatte. Al contrario, deve riconoscere l'assenza di basi testuali sufficienti per una risposta fondata. Di fronte a queste 15 domande, il comportamento corretto e atteso dal sistema prevede il blocco della pipeline di generazione e la restituzione di un messaggio di \textit{fallback} predefinito e sicuro: \textit{"In base alle mie conoscenze, non sono in grado di rispondere alla domanda"}. Nel contesto dei documenti legali analizzati durante il progetto, questa garanzia di affidabilità è un requisito architetturale imprescindibile.
+
+\subsection{Multi-Embedding: Dalla Semantica a Node2Vec}
+Per supportare strategie ibride avanzate, ogni nodo \texttt{Paragraph} ospita due rappresentazioni vettoriali. Accanto al classico embedding semantico a 768 dimensioni (\texttt{embedding\_embeddinggemma\_300m}), che mappa il "significato" del testo, il sistema introduce un approccio topologico all'informazione.
+
+Attraverso la libreria Graph Data Science (GDS), vengono calcolati e memorizzati i vettori \textbf{\texttt{embedding\_node2vec\_128}}. A differenza degli embedding tradizionali basati sul linguaggio, \textit{Node2Vec} è un algoritmo che utilizza passeggiate casuali (\textit{random walks}) per apprendere una rappresentazione continua (a 128 dimensioni) dei nodi basata esclusivamente sulla forma della rete. 
+
+Nel contesto giuridico, questo approccio è importante: \textit{Node2Vec} permette al sistema di identificare la "similarità strutturale". Due commi potrebbero usare un vocabolario completamente diverso ed eludere la ricerca vettoriale classica, ma se presentano pattern di citazione, deroga o adiacenza simili (es. entrambi sono nodi centrali che derogano altre norme in statuti affini), \textit{Node2Vec} li riconoscerà come affini. Questa intuizione topologica è il motore del ramo \texttt{NODE2VEC\_CROSS} della strategia di ricerca a grafo, garantendo il recupero di strutture legali analoghe anche tra documenti e regolamenti differenti.
+
+\section{I Moduli del Motore di Ricerca Ibrido}
+Il sistema di Retrieval-Augmented Generation (RAG) progettato adotta un'architettura ibrida modulare. I componenti collaborano per identificare i frammenti di testo ottimali:
+
+\begin{itemize}
+    \item \textbf{VectorModule (Ricerca Semantica):} Trasforma il testo in vettori densi e utilizza il modello \texttt{google/embeddinggemma-300m} per trovare i testi concettualmente più affini alla domanda.
+    \item \textbf{LexicalModule (Ricerca Lessicale):} Scansiona l'archivio testuale alla ricerca di corrispondenze esatte di parole chiave o sigle, filtrando le \textit{stop-word} italiane.
+    \item \textbf{GraphModule (Navigazione Topologica):} Utilizza i risultati iniziali come "semi" (seed) per esplorare le adiacenze strutturali nel database a grafo.
+    \item \textbf{FusionModule:} Unifica le varie classifiche sfruttando l'algoritmo matematico \textit{Reciprocal Rank Fusion} (RRF), bilanciato con una costante $k = 60$.
+    \item \textbf{RerankerModule:} Un modello Cross-Encoder (\texttt{mmarco-mMiniLMv2-L12-H384-v1}) che funge da barriera di sicurezza finale, scartando i documenti fuori contesto per arginare il fenomeno delle allucinazioni.
+\end{itemize}
+
+\section{La Strategia di Ricerca a Grafo (Graph Search Strategy)}
+L'innovazione principale dell'architettura risiede nella \textbf{Graph Search Strategy} (o \textit{Article-Window Strategy}). A differenza della strategia rapida basata sulla sola ricerca vettoriale, questo approccio è progettato per navigare dinamicamente i collegamenti tra le norme, recuperando l'intero contesto legislativo di riferimento. Il flusso di esecuzione si articola in diverse fasi complesse.
+
+\subsection{1. Estrazione Asimmetrica Iniziale}
+Il processo inizia con un recupero asimmetrico dei candidati. Al \texttt{VectorModule} viene richiesto un bacino massiccio di ben 200 risultati (valore imposto dalla costante \texttt{\_GRAPH\_SEED\_LIMIT}), necessari per creare un'ampia "rete a strascico" nel grafo. Parallelamente, il modulo lessicale estrae un numero molto inferiore di candidati, strettamente proporzionato al numero di risultati finali richiesti dall'utente.
+
+\subsection{2. Valutazione a Zone (Semaforo di Confidenza)}
+Prima di innescare l'onerosa esplorazione del grafo, il sistema analizza il punteggio di similarità del miglior documento vettoriale applicando una logica a soglie:
+\begin{itemize}
+    \item \textbf{Zona Rossa ($< 0.75$):} La domanda è fuori tema e la ricerca viene interrotta.
+    \item \textbf{Zona Verde ($> 0.80$):} La query è considerata perfettamente aderente al dominio; il filtro finale di reranking viene disattivato per ottimizzare i tempi di latenza.
+    \item \textbf{Zona Gialla:} Punteggi intermedi forzano il proseguimento della pipeline, ma rendono il controllo di sicurezza Cross-Encoder finale obbligatorio.
+\end{itemize}
+
+\subsection{3. Selezione dei Nodi Seme (Seed Selection)}
+I 200 candidati semantici e i candidati lessicali subiscono una prima aggregazione tramite RRF, pesati equamente al 50\%. Da questa classifica temporanea, l'algoritmo estrapola i punti di innesco ottimali per diramare la ricerca nel grafo:
+\begin{itemize}
+    \item I migliori 30 documenti diventano semi per l'esplorazione orizzontale dei commi adiacenti.
+    \item I migliori 20 documenti fungono da radice per recuperare l'intero articolo di riferimento.
+    \item I primissimi 5 documenti innescano la ricerca di topologie di legge analoghe in documenti esterni.
+\end{itemize}
+
+\subsection{4. Tripla Espansione Topologica}
+Questa è la fase computazionalmente più intensiva, in cui vengono lanciati in parallelo tre algoritmi di attraversamento sul database Neo4j:
+\begin{enumerate}
+    \item \textbf{Ramo NEXT\_PARAGRAPH (Adiacenza):} Partendo dai nodi seme, il grafo viene navigato in avanti e all'indietro per una profondità massima di 2 passi. Ad ogni "salto" gerarchico, il punteggio originale del documento viene penalizzato matematicamente, moltiplicandolo per $0.9^\text{distanza}$.
+    \item \textbf{Ramo SIBLING (Fratelli):} L'algoritmo aggrega tutti i nodi \texttt{Paragraph} facenti parte del medesimo \texttt{Article}. A questi commi secondari viene applicata una penalità fissa di $0.85$ rispetto allo score del seme.
+    \item \textbf{Ramo NODE2VEC\_CROSS (Similarità Strutturale):} Mediante vettori topologici a 128 dimensioni generati con \textit{Node2Vec}, l'algoritmo intercetta costrutti normativi simili in regolamenti esterni, applicando un fattore di smorzamento dello score pari a $0.7$.
+\end{enumerate}
+
+\subsection{5. Fusione Globale e Reranking}
+Le quattro classifiche ottenute (la fusione primaria e le tre espansioni topologiche) vengono riunificate dal \texttt{FusionModule} tramite RRF. Per favorire la precisione, vengono attribuiti pesi asimmetrici: 45\% ai risultati diretti, 25\% ai commi adiacenti, 20\% all'articolo espanso e 10\% ai documenti simili esterni. Infine, se imposto dalla valutazione a semaforo, i primi 3 classificati passano al vaglio del modello Reranker che convalida l'affidabilità dell'output imponendo una soglia minima di confidenza di $0.3$.
+
+\subsection{Caso di Studio: Espansione di Contesto}
+L'efficacia di questa architettura è dimostrata dai casi in cui la semantica fallisce nel catturare l'informazione completa. In una query reale testata riguardante i conflitti di competenza tra dirigenti della Provincia di Taranto, il sistema necessita di due informazioni: l'organo decisionale (Art. 3, Comma 2) e l'obbligo di consultazione (Art. 3, Comma 3). 
+
+Mentre la ricerca vettoriale pura riesce ad intercettare unicamente il Comma 2 con uno score di 0.78 escludendo il Comma 3, l'approccio a Grafo elegge il Comma 2 a "Seme Principale". Innescando la tripla espansione, l'algoritmo raggiunge fisicamente il Comma 3 sia tramite il ramo \texttt{NEXT\_PARAGRAPH} (ricalcolando lo score a 0.702) sia tramite il ramo \texttt{SIBLING} (score ricalcolato a 0.663). Il RRF somma queste scoperte e proietta l'informazione ausiliaria in cima alla classifica, permettendo all'utente di ricevere una risposta giuridicamente completa ed esaustiva.
