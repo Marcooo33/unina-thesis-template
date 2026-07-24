@@ -30,7 +30,7 @@ La fase di estrazione ha dovuto confrontarsi con documenti PDF eterogenei: alcun
     \end{enumerate}
 \end{itemize}
 
-\section{Scelta dei Database}
+\section{Scelta del Database}
 La duplice natura del problema — da un lato la necessità di rappresentare relazioni gerarchiche complesse, dall'altro l'esigenza di una ricerca semantica efficiente — ha portato all'adozione di un database a grafo specializzato, affiancato dallo studio di metodologie di ricerca vettoriale classica basata su \textit{cosine similarity}.
 
 \begin{itemize}
@@ -42,6 +42,8 @@ La duplice natura del problema — da un lato la necessità di rappresentare rel
     \end{itemize}
 
     \item \textbf{Cypher}\cite{cypher}: Il linguaggio di interrogazione dichiarativo nativo di Neo4j, utilizzato per effettuare le query di inserimento e di ricerca topologica nel grafo.
+
+    \item \textbf{Graph Data Science (GDS) e Node2Vec:} All'interno dell'ecosistema Neo4j, è stata utilizzata la Graph Data Science Library \cite{graph_data_science}, una libreria nativa dedicata all'implementazione di algoritmi analitici sui grafi. In particolare, per valorizzare le informazioni topologiche, è stato adottato Node2Vec \cite{node2vec}, un potente algoritmo di \textit{graph embedding} integrato proprio in questa libreria. Questo strumento permette di catturare in un vettore matematico le complesse relazioni gerarchiche e di vicinato tra i vari elementi del corpus normativo simulando dei percorsi casuali all'interno del grafo.
 \end{itemize}
 
 \section{LLM e Modelli di Embedding}\label{sec:llm_embedding_models}

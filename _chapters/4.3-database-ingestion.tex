@@ -38,13 +38,45 @@ Nel sistema sviluppato, l'interfaccia astratta di riferimento è rappresentata d
 Nello script principale \texttt{main.py}, il ciclo di esecuzione batch istanzia dinamicamente l'oggetto concreto, delegando a quest'ultimo i dettagli tecnici dell'inserimento. Questa architettura estendibile riduce a zero l'accoppiamento tra il livello applicativo e l'infrastruttura dati.
 
 
-\subsection{Modalità di Accesso ai Dati: Il Repository Pattern}
-Se l'interfaccia di importazione isola le strategie nella loro interezza rispetto all'orchestrazione principale, il \textit{Repository Pattern} interviene specificamente all'interno dell'architettura di persistenza dei database per mediare tra lo strato dei modelli di dominio e lo strato di accesso ai dati fisici. 
-L'obiettivo principale del Repository Pattern è centralizzare la logica di costruzione ed esecuzione delle query, offrendo al client un'interfaccia astratta per poter salvare i dati.
-In questo modo, l'importer concreto delega l'interazione alle singole repository, le quali ricevono l'oggetto di dominio da persistere, nascondendo completamente i dettagli delle implementazioni delle query.
+\subsection{Architettura del Database Neo4j}
+\label{subsec:neo4j_architecture}
+
+L'architettura sviluppata si basa su un modello a grafo implementato tramite il DBMS Neo4j, arricchito dall'utilizzo del plugin Graph Data Science (GDS) per l'elaborazione avanzata di embedding basati sulla topologia del grafo.
+
+\subsubsection{Struttura Gerarchica e Nodi del Grafo}
+Il database modella fedelmente la gerarchia documentale tipica di un atto normativo italiano, strutturandosi in un albero che discende dal livello istituzionale fino all'unità atomica di testo. Il modello è flessibile e prevede l'eventualità che non tutti gli atti normativi presentino una struttura completa, consentendo percorsi diretti (ad esempio \texttt{LegalAct $\rightarrow$ Article $\rightarrow$ Paragraph}) che bypassano livelli intermedi come Titoli e Capi.
+
+Le tipologie di nodi (\textit{Label}) presenti nel sistema sono le seguenti:
+\begin{itemize}
+    \item \textbf{Entity}: Rappresenta l'ente emittente, come ad esempio una Provincia o un Comune.
+    \item \textbf{LegalAct}: Identifica il documento giuridico nella sua interezza, come un Contratto Collettivo Nazionale o uno Statuto. Conserva metadati di dominio quali il titolo formale, la data di pubblicazione e il nome del file originale.
+    \item \textbf{Title, Chapter e Article}: Costituiscono i livelli di aggregazione intermedi dell'atto. Ciascun nodo mantiene traccia della propria numerazione formale, del titolo testuale e del proprio numero d'ordine all'interno del documento per garantire l'integrità posizionale.
+    \item \textbf{Paragraph}: Rappresenta il singolo comma normativo e costituisce il fulcro dell'intero sistema RAG.
+\end{itemize}
+
+Il nodo \texttt{Paragraph} riveste un ruolo cruciale, fungendo da principale vettore d'informazione semantica. Ogni comma è univocamente identificato da un \texttt{custom\_id} gerarchico (basato su una logica \textit{slug}) che codifica per intero il percorso dell'atto (ad esempio, \texttt{ente\_\_atto\_\_title-1\_\_chapter-2\_\_article-3\_\_paragraph-4}). Questo approccio elimina la necessità di attraversare a ritroso il grafo durante la fase di retrieval per risalire alla provenienza del testo. 
+Inoltre, all'interno del nodo sono salvati direttamente i vettori multidimensionali. Nello specifico, troviamo gli embedding semantici a dimensione variabile e un embedding strutturale a 128 dimensioni calcolato mediante algoritmi di graph walk (\textit{Node2Vec} via GDS). DA APPROFONDIRE IN RICERCA SEMANTICA V2
+
+\subsubsection{Relazioni Strutturali, Sequenziali e Semantiche}
+L'ecosistema di relazioni (\textit{Edges}) all'interno del grafo si articola in tre macro-categorie progettate per supportare le fasi interrogazione avanzata:
+\begin{itemize}
+    \item \textbf{Relazioni Strutturali}: Definiscono la topologia discendente del documento normativo. Comprendono l'arco \texttt{ISSUES} che lega l'Ente all'Atto, e la catena di contenimento gerarchico formata da \texttt{HAS\_TITLE}, \texttt{HAS\_CHAPTER}, \texttt{HAS\_ARTICLE} e \texttt{HAS\_PARAGRAPH}.
+    \item \textbf{Relazioni Sequenziali}: I commi appartenenti allo stesso articolo sono concatenati linearmente tramite la relazione \texttt{NEXT\_PARAGRAPH}. Questa architettura a lista concatenata (\textit{linked list}) si rivela fondamentale per espandere dinamicamente la finestra di contesto durante la generazione della risposta, permettendo di recuperare i commi logicamente antecedenti o successivi senza dover eseguire query computazionalmente costose.
+    \item \textbf{Relazioni Semantico-Legali}: Codificano i riferimenti giuridici espliciti tra i nodi. Tali relazioni, attualmente estratte esclusivamente a livello intra-documento (il documento cita sé stesso, senza riferimenti \textit{cross-act}), si suddividono in:
+    \begin{itemize}
+        \item \textbf{CITES (Cita)}: Segnala che un elemento (Regolamento, Articolo o Comma) fa esplicito riferimento a un altro elemento del medesimo atto.
+        \item \textbf{REPEALS (Abroga)}: Indica l'annullamento della validità giuridica di un elemento di destinazione da parte di un Articolo o Comma.
+        \item \textbf{INTERPRETS (Interpreta)}: Indica che la comprensione del nodo di origine è strettamente vincolata alla lettura del nodo di destinazione.
+        \item \textbf{REPLACES (Sostituisce)}: Indica che un elemento normativo prende formalmente il posto di un elemento preesistente.
+        \item \textbf{DEROGATES (Deroga)}: Stabilisce un'eccezione a una regola generale contenuta nel nodo di destinazione.
+    \end{itemize}
+\end{itemize}
+
+Occorre precisare che, sebbene lo schema dati supporti nativamente tutte le interazioni legali sopracitate, l'attuale popolamento del database non registra occorrenze per le relazioni \texttt{REPEALS} e \texttt{REPLACES}. Questa mancanza non è imputabile a un difetto del sistema di estrazione, bensì rappresenta un limite intrinseco dei documenti elaborati che intrinsecamente non contengono clausole esplicite di abrogazione o sostituzione strutturata.
+
 
 \subsection{Dettagli Implementativi dell'Ingestion su Neo4j}
-Nel contesto di Neo4j, un atto legale non può essere salvato tramite un'unica operazione atomica standard, a causa delle profonde interconnessioni tra i nodi della gerarchia. Anziché concentrare la scrittura di stringhe Cypher complesse all'interno della classe \texttt{Neo4jImporter}, la responsabilità è stata distribuita su una serie di repository specializzati, ognuno deputato alla gestione del ciclo di vita di un singolo modello di dominio:
+Un atto legale non può essere salvato tramite un'unica operazione atomica standard, a causa delle profonde interconnessioni tra i nodi della gerarchia. Anziché concentrare la scrittura di stringhe Cypher complesse, la responsabilità è stata distribuita su una serie di repository specializzati, ognuno deputato alla gestione del ciclo di vita di un singolo modello di dominio:
 \begin{itemize}
     \item \texttt{EntityRepository}: Gestisce l'inserimento dei nodi relativi agli enti istituzionali.
     \item \texttt{LegalActRepository}: Inserisce il nodo radice dell'atto e lo ancora all'ente emittente.
@@ -52,18 +84,38 @@ Nel contesto di Neo4j, un atto legale non può essere salvato tramite un'unica o
     \item \texttt{ParagraphRepository}: Si occupa esclusivamente della persistenza dei nodi foglia contenenti il testo dei commi.
 \end{itemize}
 
-Per quanto riguarda il salvataggio delle relazioni trasversali (ad esempio, le citazioni tra diversi atti normativi), queste informazioni vengono lette da file JSON esterni dedicati. 
+Per quanto riguarda il salvataggio delle relazioni trasversali, queste informazioni vengono lette da file JSON esterni dedicati. 
 Il metodo che si occupa di questa operazione attraverso i \texttt{custom\_id} dei nodi salvati e indicizzati sul grafo trova in maniera quasi istantanea i nodi correlati dall'estratto JSON ed esegue una query Cypher dedicata procedendo alla creazione dell'arco semantico.
 
-\begin{lstlisting}[caption={Esempio di relazione estratta in formato JSON}, label={lst:json-cites}, breaklines=true]
+\begin{lstlisting}[language=Cypher, caption={Query Cypher per l'inserimento delle relazioni normate}, label={lst:cypher_relationships}]
+MATCH (s {custom_id: $source_id})
+WITH s
+MATCH (t {custom_id: $target_id})
+MERGE (s)-[r:`<rel_type>`]->(t)
+RETURN r
+\end{lstlisting}
+
+\noindent L'obiettivo di questa query è rintracciare i due nodi di interesse (sorgente e destinazione) tramite il loro identificativo univoco e stabilire una relazione orientata tra di essi.
+
+Di seguito troviamo un esempio di relazione estratta in formato JSON, con ID parzialmente omessi per motivi di leggibilità:
+
+\begin{lstlisting}[caption={Esempio reale di relazione estratta in formato JSON}, label={lst:json-cites}, breaklines=true]
 {
-  "sourceId": "ente-provincia-taranto__CCNL-22-02-2010__article-3__paragraph-1",
+  "sourceId": "ente-provincia-taranto__contratto-collettivo-[...]__title-2__chapter-2__article-12__paragraph-4",
   "relationshipType": "CITES",
-  "targetId": "ente-provincia-taranto__CCNL-22-02-2010__article-2"
+  "targetId": "ente-provincia-taranto__contratto-collettivo-[...]__title-2__chapter-2__article-12__paragraph-2"
 }
 \end{lstlisting}
 
-? INSERIRE ANCHE QUERY CYPHER ?
+A supporto di quanto descritto, la Figura \ref{fig:relationship_example} fornisce una rappresentazione visiva della relazione instaurata tra i due nodi all'interno del database.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{_images/relationship.png}
+    \caption{Rappresentazione visiva di una relazione orientata tra due nodi all'interno del grafo.}
+    \label{fig:relationship_example}
+\end{figure}
 
 \subsection{Risultati e Metriche (DA AGGIORNARE)}
 INSERIRE METRICHE DI PERFORMANCE E RISULTATI DELL'INGESTION, TEMPI DI ESECUZIONE, NUMERO DI NODI E RELAZIONI INSERITI.

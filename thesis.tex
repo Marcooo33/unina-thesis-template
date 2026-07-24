@@ -48,6 +48,14 @@
 \usepackage{graphicx}
 \usepackage{float}
 
+\lstdefinelanguage{Cypher}{
+  morekeywords={MATCH, WITH, MERGE, SET, RETURN, CREATE, DELETE, WHERE, YIELD, CALL},
+  sensitive=true,
+  morecomment=[l]{//},
+  morestring=[b]",
+  morestring=[b]'
+}
+
 % read configuration file
 \input{_utils/macro.tex} %can write your macros here
 
