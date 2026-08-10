@@ -3,7 +3,7 @@
 \label{sec:creazione_embedding}
 
 L'operazione di vettorizzazione, o di \textit{embedding}, rappresenta un passaggio cruciale per abilitare le funzionalità di ricerca semantica all'interno del database a grafo.
-La pipeline supporta tre modelli di embedding, dettagliati in \autoref{sec:llm_embedding_models}: 
+La pipeline supporta tre modelli di embedding, dettagliati nella sezione \ref{sec:llm_embedding_models}: 
 \begin{itemize}
     \item \texttt{google/embeddinggemma-300m}
     \item \texttt{perplexity-ai/pplx-embed-v1-0.6b}
@@ -17,25 +17,52 @@ Neo4j, inoltre, supporta la creazione di indici vettoriali utilizzando algoritmi
 \subsection{Differenza nell'Arricchimento Contestuale: Standard vs Late Chunking}
 \label{subsec:arricchimento_contestuale}
  
-Il sistema implementa due approcci diversi per fornire \textit{contesto} ai commi. Se si fornisce al modello solo la stringa del comma \textquote{È punito con la reclusione da 1 a 3 anni}, l'embedding sarà di scarsa qualità perché manca il soggetto e l'argomento (definiti nell'articolo o titolo).
- 
+Il sistema implementa due approcci diversi per fornire \textit{contesto} ai commi. Se si fornisce al modello solo la stringa del comma \textquote{... è punito con la reclusione da 1 a 3 anni}, l'embedding generato risulterà limitato, poiché il testo manca di informazioni fondamentali come il soggetto e il reato specifico (elementi definiti nei livelli superiori come l'articolo o il titolo).
 Ecco come le due metodologie risolvono il problema:
  
 \subsubsection{A. Arricchimento Standard (Modelli: Gemma 300m e PPLX-v1)}
  
 In questo approccio, il contesto viene iniettato testualmente attraverso \textit{String Concatenation}.
-Per ciascun comma, viene recuperato il contesto gerarchico risalendo l'albero strutturale (articolo, capitolo, titolo, atto) tramite query Cypher. Tutte queste informazioni vengono concatenate in un'unica stringa, producendo un testo inviato al modello simile al seguente:
+Per ciascun comma, viene recuperato il contesto gerarchico risalendo l'albero strutturale tramite query Cypher. Tutte queste informazioni vengono concatenate in un'unica stringa, producendo un testo inviato al modello simile al seguente:
 
 \begin{center}
-    \texttt{\textquote{Atto: Costituzione | Titolo 1 | Art. 13 | Comma 1 | La libertà personale è inviolabile.}}
+    \texttt{\textquote{Atto: Codice Penale | Titolo 3 Dei delitti contro l'amministrazione della giustizia | Capo 2 Dei delitti contro l'autorità delle decisioni giudiziarie | Art. 385 Evasione | Comma 1 | ... è punito con la reclusione da 1 a 3 anni.}}
 \end{center}
 
 In questo approccio, ogni comma viene trattato come un \textit{chunk isolato} al momento dell'embedding. Sebbene il modello riceva il testo arricchito dai metadati gerarchici, il contesto rimane limitato a questo preambolo testuale statico.
  
 \subsubsection{B. Arricchimento tramite Late Chunking (Modello: PPLX-Context)}
  
-Questo approccio impiega una vera e propria contestualizzazione a livello di rete neurale. A differenza dell'approccio standard, non utilizza preamboli testuali pre-calcolati, ma affida la comprensione semantica all'algoritmo di \textit{self-attention} del modello.
+Questo approccio impiega una vera e propria contestualizzazione a livello di rete neurale. A differenza dell'approccio standard, non utilizza preamboli testuali pre-calcolati, ma affida la comprensione semantica direttamente all'algoritmo di \textit{self-attention} del modello.
 
-Il sistema recupera dal database, tramite query Cypher, l'intero articolo con tutti i commi che lo compongono, mantenendo traccia dell'ordine sequenziale tra di essi. Invece di inviare al modello i commi singolarmente, il sistema li presenta come un'unica sequenza ordinata.
+Il sistema recupera dal database, tramite query Cypher, l'intero articolo con tutti i commi che lo compongono, mantenendo traccia dell'ordine sequenziale e dei confini esatti tra di essi. Invece di frammentare il testo a monte e inviare al modello i commi singolarmente, il sistema li presenta all'encoder come un'unica sequenza di input ininterrotta.
 
-Il modello processa l'intero articolo permettendo ai token di ciascun comma di interagire semanticamente con i token dei commi adiacenti tramite il meccanismo di self-attention. Solo al termine di questo processo, il modello estrae e restituisce i singoli vettori per ciascun comma. Questa tecnica, nota come \textit{late chunking}, cattura il significato globale dell'articolo pur mantenendo la precisione a livello di comma.
+È in questa fase che agisce il meccanismo di \textit{late chunking}. Il modello processa l'articolo nella sua interezza attraverso i successivi layer del Transformer; in questo modo, la \textit{self-attention} bidirezionale permette ai token di ciascun comma di "prestare attenzione" e interagire con i token adiacenti e con l'intero testo. Questo approccio abbatte i confini artificiali del chunking testuale, permettendo alla rete di risolvere dinamicamente pronomi, riferimenti incrociati e concetti impliciti basandosi sul contesto normativo globale.
+
+Solo nella fase finale, dopo che ogni singolo token ha assorbito un significato profondamente contestualizzato, il modello applica un'operazione di \textit{pooling} differenziata. Sfruttando gli indici sequenziali salvati in precedenza, estrae e restituisce gli embeddings separati per ciascun comma originale. Questa architettura garantisce che l'embedding finale di un singolo comma racchiuda non solo il suo significato letterale, ma anche le sfumature semantiche derivanti dal resto dell'articolo, unendo la massima precisione granulare a una perfetta consapevolezza del contesto globale.
+
+Un esempio pratico:
+
+\begin{quote}
+\texttt{Comma 1: "I soggetti che omettono la dichiarazione dei redditi sono puniti con una sanzione di 1.000 euro."}
+
+\texttt{Comma 2: "La disposizione non si applica se essi dimostrano l'assenza di dolo."}
+\end{quote}
+
+Se il modello processa il Comma 2 in isolamento, la parola "essi" è ambigua e "La disposizione" è un concetto vuoto.
+Sfruttando il late chunking, la rete neurale collega istantaneamente "essi" del Comma 2 ai "soggetti" del Comma 1, e "La disposizione" all'intero concetto di sanzione appena letto.
+
+\subsection{Il Graph Embedding come appoggio agli Embedding Semantici}
+Oltre all'analisi puramente testuale, il sistema arricchisce la rappresentazione della conoscenza integrando l'informazione strutturale del documento. A tale scopo viene impiegato l'algoritmo \textbf{Node2Vec}, eseguito tramite la libreria Graph Data Science (GDS). Questo approccio genera un \textit{graph embedding} per ogni comma, codificando in vettori a 128 dimensioni la topologia della rete, ovvero la gerarchia del documento e le relazioni logico-giuridiche che legano i nodi. In questo modo, l'algoritmo mappa in regioni vicine dello spazio vettoriale quei commi che, a prescindere dal testo, condividono una medesima posizione strutturale o forti vincoli normativi.
+Per adattare Node2Vec al dominio legale, la strategia di esplorazione del grafo tramite \textit{random walk} è stata calibrata attraverso i parametri \textbf{p} e \textbf{q}:
+\begin{itemize}
+    \item \textbf{Return parameter ($p = 1$)}: Mantiene un comportamento esplorativo neutrale, senza forzare né penalizzare il ritorno immediato al nodo precedente.
+    \item \textbf{In-out parameter ($q = 0.5$)}: Essendo inferiore a $1$, forza un'esplorazione profonda (simile a una \textit{Depth-First Search}). Questa scelta è essenziale nel dominio legale, in quanto permette all'algoritmo di attraversare in profondità l'intera struttura verticale del documento (Legge $\rightarrow$ Titolo $\rightarrow$ Capo $\rightarrow$ Articolo $\rightarrow$ Comma) e di seguire agevolmente lunghe catene di rimandi normativi.
+\end{itemize}
+Inoltre, per guidare attivamente l'apprendimento verso i percorsi più significativi, è stato implementato un sistema di pesi differenziati per le diverse tipologie di relazione. Questi valori alterano le probabilità di transizione durante le passeggiate aleatorie, forzando il modello a privilegiare specifiche tipologie di relazioni:
+\begin{itemize}
+    \item \textbf{Pesi Elevati (2.0)}: Assegnati alle relazioni strutturali (\texttt{HAS\_TITLE}, \texttt{HAS\_CHAPTER}, ecc.) per preservare la forte dipendenza gerarchica di un comma dal suo contenitore genitore. Questo stesso valore massimo è stato riservato ad abrogazioni e sostituzioni (\texttt{REPEALS}, \texttt{REPLACES}), in quanto rappresentano legami di importanza cruciale: tali relazioni, infatti, hanno un impatto giuridico estremamente forte, andando ad alterare in modo diretto la validità e l'efficacia delle disposizioni normative connesse.
+    \item \textbf{Pesi Intermedi (1.5)}: Assegnati a interpretazioni e deroghe (\texttt{INTERPRETS}, \texttt{DEROGATES}), relazioni che modificano l'applicazione di una norma creando vincoli forti, ma senza costituire una sostituzione assoluta.
+    \item \textbf{Pesi Base (1.0)}: Assegnati alla contiguità testuale (\texttt{NEXT\_PARAGRAPH}) e alle citazioni generiche (\texttt{CITES}), collegamenti sicuramente pertinenti ma gerarchicamente e semanticamente meno vincolanti.
+\end{itemize}
+Al termine dell'esecuzione, questi embedding strutturali vengono salvati come proprietà aggiuntiva (\texttt{embedding\_node2vec\_128}) sui nodi dei commi \texttt{(:Paragraph)}. Questo affianca l'embedding semantico tradizionale, dotando il sistema di un duplice livello di ricerca: uno basato sul contenuto linguistico, l'altro sulla topologia e sui legami normativi del documento.

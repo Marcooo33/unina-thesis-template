@@ -2,13 +2,12 @@
 \label{sec:strutturazione_semantica}
 
 Una volta ultimata la fase di estrazione del testo grezzo, illustrata nella sezione precedente, i documenti normativi si presentano sotto forma di file testuali piatti in formato Markdown. Tali file, pur contenendo l'intero testo originale, sono del tutto privi di metadati strutturali e di una formattazione gerarchica chiara. 
-Poiché l'architettura di sistema prevede l'ingestione di questi documenti all'interno di un database a grafo (Neo4j) al fine di confrontare la navigazione topologica con la classica ricerca vettoriale basata su \textit{cosine similarity}, risulta indispensabile trasformare il testo non strutturato in una gerarchia rigorosa. L'archiviazione del solo testo grezzo, infatti, risulterebbe del tutto inadeguata e priva di utilità pratica. Una strutturazione accurata rappresenta il prerequisito fondamentale per abilitare qualsiasi operazione avanzata di \textit{information retrieval}, garantendo che i dati possano essere interrogati in modo efficiente e contestuale.
+Poiché l'architettura di sistema prevede l'inserimento di questi documenti all'interno di Neo4j risulta indispensabile trasformare il testo non strutturato in una gerarchia rigorosa. L'archiviazione del solo testo grezzo, infatti, risulterebbe del tutto inadeguata e priva di utilità pratica. Una strutturazione accurata rappresenta il prerequisito fondamentale per abilitare qualsiasi operazione avanzata di \textit{information retrieval}, garantendo che i dati possano essere interrogati in modo efficiente e contestuale.
 
 \subsection{Il Modello e la Strategia di Generazione}
+\label{sec:strutturazione_gerarchica}
 
 Per affrontare il compito cruciale della strutturazione sintattica, è stato impiegato il Large Language Model \texttt{Gemini 3.5 Flash}. A livello di architettura software, il processo è diviso in due step distinti: la generazione di una struttura JSON gerarchica e l'estrazione delle relazioni semantiche tra le entità legali.
-
-\subsection{Generazione della Struttura Gerarchica}
 
 L'efficacia e l'accuratezza del processo di strutturazione si fondano su un \textit{System Prompt} ingegnerizzato ad hoc. Il suo compito principale è quello di mappare il contenuto all'interno del seguente schema logico:
 
@@ -21,14 +20,15 @@ L'efficacia e l'accuratezza del processo di strutturazione si fondano su un \tex
 Per garantire la massima coerenza dei dati all'interno del Knowledge Graph, sono state imposte al LLM regole tassative di parsing:
 
 \begin{itemize}
-    \item \textbf{Normalizzazione Numerica:} Tutti gli identificativi gerarchici originariamente espressi in numeri romani o in forma testuale (es. ``TITOLO I'', ``CAPO IV'') devono essere categoricamente convertiti in numeri interi arabi (1, 4, ecc.).
+    \item \textbf{Normalizzazione Numerica:} Tutti gli identificativi gerarchici originariamente espressi in numeri romani o in forma testuale (es. ``TITOLO I'', ``CAPO IV'') devono essere categoricamente convertiti in numeri interi arabi (``TITOLO 1'', ``CAPO 4'').
     \item \textbf{Gestione Dinamica dei Commi:} Poiché nei testi di legge i commi non sono sempre esplicitamente numerati, il modello è istruito a dedurli analizzando le interruzioni logiche dei paragrafi, assegnando loro una numerazione progressiva.
-    \item \textbf{Ottimizzazione dello Schema:} Per mantenere leggeri i file JSON, il modello è programmato per non inizializzare chiavi con valori vuoti o nulli; se un livello gerarchico (come un Capo o un Titolo) non trova riscontro nel testo originale, la proprietà viene semplicemente omessa.
+    \item \textbf{Ottimizzazione dello Schema:} Per mantenere leggeri i file JSON, il modello è programmato per non inizializzare chiavi con valori vuoti o nulli; se un livello gerarchico (come un capo o un titolo) non trova riscontro nel testo originale, la proprietà viene semplicemente omessa, fermo restando che negli atti normativi i livelli fondamentali come articoli e commi esistono necessariamente.
 \end{itemize}
 
-L'esecuzione di questo processo restituisce una directory di documenti JSON puliti e strutturati gerarchicamente, pronti per essere archiviati e per affrontare il successivo step: l'estrazione delle relazioni semantiche tra le entità legali.
+L'esecuzione di questo processo restituisce una directory di documenti JSON puliti e strutturati gerarchicamente, pronti per affrontare il successivo step: l'estrazione delle relazioni semantiche tra le entità legali.
 
 \subsection{Estrazione delle Relazioni Semantiche}
+\label{sec:estrazione_relazioni}
 
 La sola scomposizione del testo normativo in una struttura gerarchica ad albero rappresenta una condizione necessaria ma non sufficiente per la costruzione di un vero e proprio \textit{Knowledge Graph}. Per sfruttare appieno la potenza topologica di un database a grafo come Neo4j, è indispensabile individuare e mappare esplicitamente i collegamenti e le dipendenze logiche che intercorrono tra le diverse disposizioni giuridiche all'interno dello stesso atto. A questo scopo, la pipeline prevede un secondo step logico interamente dedicato all'estrazione delle relazioni semantiche.
 In questa fase, l'input non è più il testo grezzo, ma i file JSON prodotti nello step precedente, che quindi agiscono come una base di conoscenza consolidata. Ciascun documento viene quindi analizzato dal LLM \texttt{Gemini 3.5 Flash}, guidato da un \textit{System Prompt} specializzato. Tale prompt è stato progettato per riconoscere i costrutti linguistici del gergo giuridico che indicano un collegamento formale tra le parti del testo. Le relazioni estratte sono:
