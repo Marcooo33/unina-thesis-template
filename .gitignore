@@ -1,5 +1,7 @@
 #files not to be versioned
 
+*.lof
+*.lot
 *.out
 *.blg
 *.toc
