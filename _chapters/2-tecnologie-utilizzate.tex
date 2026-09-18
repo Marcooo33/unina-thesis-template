@@ -3,7 +3,7 @@ Per far fronte alle sfide di estrazione, elaborazione, archiviazione e interroga
 
 \section{Linguaggi di Programmazione}
 \begin{itemize}
-    \item \textbf{Python}\cite{python}: È stato il linguaggio cardine per la costruzione dell'intera pipeline del progetto. La scelta è ricaduta su Python per diverse ragioni:
+    \item \textbf{Python}: È stato il linguaggio cardine per la costruzione dell'intera pipeline del progetto. La scelta è ricaduta su Python per diverse ragioni:
     \begin{itemize}
         \item \textbf{Ecosistema dedicato ai modelli linguistici:} Python dispone di librerie mature e ampiamente supportate (come \texttt{sentence-transformers}) che hanno permesso di integrare agevolmente i modelli di embedding senza dover reimplementare componenti di basso livello.
         \item \textbf{Ottima integrazione con tutte le librerie utilizzate:} Python risulta perfettamente integrato con tutti gli strumenti e le librerie adottate nell'intero stack tecnologico (dai tool di estrazione testuale, ai modelli LLM, fino alla Graph Data Science Library e al database Neo4j tramite API native), permettendo di orchestrare l'intera pipeline in modo fluido e senza la necessità di complessi adattatori o wrapper di terze parti.
@@ -35,12 +35,12 @@ La duplice natura del problema — da un lato la necessità di rappresentare rel
 La scelta è ricaduta su Neo4j, il database a grafo più diffuso e maturo sul mercato, per le seguenti motivazioni: 
     \begin{itemize}
         \item \textbf{Modellazione naturale della gerarchia normativa:} La struttura di un atto normativo è intrinsecamente un grafo, in cui ogni elemento è un nodo e le relazioni di appartenenza sono archi. Neo4j consente di mappare questa topologia in modo diretto, senza le complessità delle \texttt{JOIN} ricorsive tipiche dei database relazionali.
-        \item \textbf{Supporto nativo per la Vector Search:} Il database permette di memorizzare vettori ad alta dimensionalità (fino a 4096 dimensioni) come proprietà dei nodi. Questa caratteristica, unita alla possibilità di creare indici vettoriali dedicati, risulta fondamentale per le operazioni di ricerca basate sulla \textit{cosine similarity}.
+        \item \textbf{Supporto nativo per la Vector Search:} Il database permette di memorizzare rappresentazioni vettoriali come proprietà dei nodi e di creare indici dedicati, configurabili con funzioni di similarità coseno o euclidea. Nelle versioni recenti di Neo4j, tali indici supportano vettori con dimensionalità compresa tra 1 e 4096 \cite{neo4j_vector_indexes}. Questa funzionalità risulta fondamentale per le operazioni di ricerca basate sulla \textit{cosine similarity}.
     \end{itemize}
 
 Per interagire con il database e gestire le operazioni di interrogazione e popolamento del grafo, è stato adottato \textbf{Cypher} \cite{cypher}, il linguaggio dichiarativo nativo dell'ecosistema Neo4j.
 
-Infine, per valorizzare le informazioni topologiche della rete, si è fatto ricorso alla \textbf{Graph Data Science Library} \cite{graph_data_science}, una libreria nativa dedicata all'implementazione di algoritmi analitici sui grafi. Al suo interno è stato selezionato \textbf{Node2Vec} \cite{node2vec}, un potente algoritmo di \textit{graph embedding}. 
+Infine, per valorizzare le informazioni topologiche della rete, si è fatto ricorso alla \textbf{Graph Data Science Library}, una libreria nativa dedicata all'implementazione di algoritmi analitici sui grafi. Al suo interno è stato selezionato \textbf{Node2Vec}, un potente algoritmo di \textit{graph embedding}.
 A differenza degli embedding semantici utilizzati per la ricerca testuale (discussi nella Sezione \ref{sec:llm_embedding_models}), questo algoritmo permette di codificare in uno spazio vettoriale di 128 dimensioni le complesse relazioni gerarchiche e di vicinato che intercorrono tra i vari elementi del corpus normativo.
 
 \section{LLM e Modelli di Embedding Semantici}\label{sec:llm_embedding_models}
@@ -49,25 +49,25 @@ Il cuore intelligente del sistema risiede nei modelli di linguaggio e di embeddi
 \begin{itemize}
     \item \textbf{Gemini 3.5 Flash}\cite{gemini}: \textit{Large Language Model} di Google, utilizzato tramite API per il compito cruciale della strutturazione dei documenti normativi. Le motivazioni alla base di questa scelta sono:
     \begin{itemize}
-        \item \textbf{Aderenza rigorosa allo schema JSON:} Gemini 3.5 Flash ha dimostrato un'eccellente capacità di produrre output JSON conformi a uno schema predefinito, un requisito fondamentale per garantire che la gerarchia normativa (Titoli, Capi, Articoli, Commi) fosse rappresentata in modo consistente e automaticamente processabile dalle fasi successive della pipeline.
+        \item \textbf{Aderenza rigorosa allo schema JSON:} Gemini 3.5 Flash supporta la generazione di output strutturati conformi a uno schema JSON predefinito \cite{gemini_structured_output}. Nell'ambito del progetto, questa funzionalità ha consentito di rappresentare la gerarchia normativa (Titoli, Capi, Articoli, Commi) in modo consistente e automaticamente processabile dalle fasi successive della pipeline.
         \item \textbf{Comprensione della lingua italiana:} Il modello ha mostrato una solida competenza nell'elaborazione del linguaggio burocratico italiano, riconoscendo correttamente la terminologia giuridica e le espressioni formulari tipiche degli atti amministrativi.
         \item \textbf{Rapporto costo/qualità:} Rispetto a modelli più potenti ma significativamente più costosi (come GPT-4 o Claude), Gemini 3.5 Flash ha offerto un compromesso ottimale tra qualità dell'output strutturato e costo per token, aspetto rilevante considerando l'elaborazione batch di centinaia di documenti.
     \end{itemize}
 
     \item \textbf{Modelli di Embedding:} La vettorializzazione del testo normativo rappresenta un elemento critico per la qualità della ricerca semantica. Sono stati testati molteplici modelli per identificare la soluzione più efficace nel dominio giuridico italiano. I test più approfonditi hanno coinvolto i seguenti modelli:
     \begin{itemize}
-        \item \textbf{\texttt{google/embeddinggemma-300m}:} Modello sviluppato da Google che trasforma il testo in vettori a 768 dimensioni. È costruito sull'architettura Gemma 3 ed è addestrato su oltre 100 lingue. Una caratteristica distintiva è la possibilità di ridurre le dimensioni del vettore finale (a 512, 256 o 128) senza perdere qualità, rendendolo particolarmente efficiente su dispositivi con risorse limitate.
+        \item \textbf{\texttt{google/embeddinggemma-300m}:} Modello sviluppato da Google che trasforma il testo in vettori a 768 dimensioni. È costruito sull'architettura Gemma 3 ed è addestrato su oltre 100 lingue. Mediante la tecnica \textit{Matryoshka Representation Learning}, la rappresentazione può essere ridotta a 512, 256 o 128 dimensioni, introducendo un compromesso tra compattezza e qualità dell'embedding \cite{embeddinggemma}.
         
-        \item \textbf{\texttt{perplexity-ai/pplx-embed-v1-0.6b}:} Modello sviluppato da Perplexity AI che trasforma il testo in vettori a 1024 dimensioni, maggiori rispetto a Gemma per catturare più sfumature semantiche. È ottimizzato per applicazioni pratiche come ricerca semantica e sistemi RAG.
+        \item \textbf{\texttt{perplexity-ai/pplx-embed-v1-0.6b}:} Modello sviluppato da Perplexity AI che produce vettori a 1024 dimensioni ed è progettato per compiti di retrieval multilingue, tra cui la ricerca semantica e i sistemi RAG \cite{eslami2026pplxembed}.
         
-        \item \textbf{\texttt{perplexity-ai/pplx-embed-context-v1-0.6b}:} Variante contestuale del modello Perplexity, anch'esso produce vettori a 1024 dimensioni. La differenza principale è che questo modello è addestrato per comprendere il \textit{contesto} di un documento: quando processa i chunk, considera anche il resto del documento, non solo il frammento isolato. Questo lo rende più adatto per sistemi RAG dove il significato dei frammenti dipende dal contesto circostante. Questa tecnica è nota come \textit{Late Chunking} \cite{latechunking} e permette di ottenere rappresentazioni più ricche e accurate dei frammenti di testo.
+        \item \textbf{\texttt{perplexity-ai/pplx-embed-context-v1-0.6b}:} Variante contestuale del modello Perplexity, anch'essa produce vettori a 1024 dimensioni. Durante la rappresentazione dei singoli chunk incorpora informazioni provenienti dal contesto globale del documento, anziché trattare ciascun frammento in modo completamente isolato \cite{eslami2026pplxembed}. Il modello applica il principio del \textit{Late Chunking} \cite{latechunking}, con l'obiettivo di preservare nelle rappresentazioni locali una parte dell'informazione disponibile nel documento completo.
 \end{itemize}
-    La valutazione si è basata sulla capacità di ciascun modello di recuperare i commi pertinenti a partire da query in linguaggio naturale, misurata attraverso metriche standard di Information Retrieval quali \textit{Precision@k}, e \textit{Mean Reciprocal Rank} (MRR).
+    La valutazione si è basata sulla capacità di ciascun modello di recuperare i commi pertinenti a partire da query in linguaggio naturale. A questo scopo, la \textit{Precision@k} è stata impiegata per misurare la quota di risultati pertinenti presente nelle prime $k$ posizioni della graduatoria, mentre il \textit{Mean Reciprocal Rank} (MRR) ha permesso di valutare quanto precocemente comparisse il primo risultato pertinente. Si tratta di due metriche consolidate nell'ambito dell'Information Retrieval, complementari perché descrivono rispettivamente la qualità complessiva dei primi risultati e la rapidità con cui il sistema individua una risposta rilevante \cite{manning2008introduction}.
 \end{itemize}
 
 \section{Deployment e Containerizzazione}
 \begin{itemize}
-    \item \textbf{Docker}\cite{docker}: L'intero ecosistema è stato modularizzato attraverso lo sviluppo di container isolati e specifici per ciascun componente della pipeline. Questa scelta architetturale è stata dettata da esigenze sia tecniche che operative:
+    \item \textbf{Docker}: L'intero ecosistema è stato modularizzato attraverso lo sviluppo di container isolati e specifici per ciascun componente della pipeline. Questa scelta architetturale è stata dettata da esigenze sia tecniche che operative:
     \begin{itemize}
         \item \textbf{Isolamento delle dipendenze:} Ogni fase della pipeline (estrazione, strutturazione, ingestion, embedding) presenta dipendenze software potenzialmente conflittuali. Docker ha permesso di incapsulare ciascuna in un ambiente dedicato, eliminando i conflitti di versione tra librerie e garantendo la riproducibilità dell'ambiente di esecuzione su qualsiasi macchina.
         \item \textbf{Modularità e manutenibilità:} La separazione in container indipendenti ha permesso di sviluppare, testare e aggiornare ciascun modulo della pipeline in isolamento, semplificando la manutenzione.
