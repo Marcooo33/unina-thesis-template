@@ -2,28 +2,107 @@
 
 \inlineminitoc
 
-In questo capitolo viene presentata l'architettura complessiva del sistema sviluppato, illustrando i componenti principali e il flusso di dati attraverso le diverse fasi del processo. L'obiettivo è fornire una panoramica chiara e dettagliata delle scelte progettuali, tracciando il percorso logico che i dati seguono dal momento in cui vengono acquisiti fino alla fase di interrogazione e utilizzo da parte degli utenti finali.
+Il sistema sviluppato ha l'obiettivo di trasformare una collezione di documenti normativi non strutturati in una base di conoscenza interrogabile. A tal fine, l'architettura integra tecniche di estrazione documentale, modelli linguistici, rappresentazioni vettoriali e un database a grafo.
 
-La Figura \ref{fig:architettura-software} fornisce un diagramma riassuntivo di tale architettura, evidenziando i moduli principali e le interazioni tra di essi. Come illustrato nello schema, il sistema è concepito come una pipeline sequenziale. 
+Il presente capitolo descrive l'organizzazione complessiva del sistema, le responsabilità assegnate ai suoi componenti e il percorso seguito dai dati. I dettagli relativi alle singole librerie, alle classi software e alle procedure di importazione sono invece approfonditi nel Capitolo~\ref{chap:fourth}. La valutazione sperimentale delle strategie di ricerca è demandata ai capitoli successivi.
 
-Nella prima fase, vengono applicate tecniche specifiche per il recupero dei testi grezzi dai documenti normativi, con particolare attenzione alle librerie impiegate per il parsing e alle strategie di pulizia dei dati, fondamentali per mitigare rumore e inconsistenze strutturali.
+\section{Vista generale dell'architettura}
 
-Una volta estratto, il testo necessita di essere organizzato secondo le logiche giuridiche del documento. A tale scopo, la fase di strutturazione si avvale di Large Language Models (LLM) per la trasformazione del testo grezzo in un formato analizzabile. Il fulcro di questo passaggio è la definizione e l'utilizzo di uno schema JSON rigoroso, progettato appositamente per rappresentare e mantenere intatta la gerarchia degli atti normativi e le complesse relazioni giuridico-logiche che li collegano.
+La Figura~\ref{fig:architettura-software} mostra i componenti principali e le trasformazioni attraversate dai dati. Sebbene il percorso di acquisizione proceda prevalentemente in modo sequenziale, l'architettura complessiva è suddivisa in due macroprocessi:
 
-I dati validati e strutturati vengono successivamente indirizzati verso il sistema di archiviazione, cioè il database Neo4j, che inserisce le informazioni mantenendo le relazioni gerarchiche e logiche tra i vari elementi normativi precedentemente individuati.
+\begin{enumerate}
+    \item una \textbf{pipeline offline di acquisizione e indicizzazione}, eseguita per trasformare i documenti originali e popolare la base di conoscenza;
+    \item una \textbf{pipeline online di interrogazione}, attivata quando una domanda in linguaggio naturale deve essere confrontata con il corpus indicizzato.
+\end{enumerate}
 
-Dopodiché vengono calcolati gli \textit{embedding} testuali a partire dal testo dei commi, informazione presente come proprietà del nodo. Questi \textit{embedding} vengono memorizzati nel database, consentendo di effettuare ricerche basate sulla similarità semantica.
-
-Infine viene effettuato un confronto architetturale e prestazionale tra due diversi paradigmi di ricerca:
-
-\begin{itemize}
-    \item L'implementazione di una \textbf{ricerca vettoriale classica} basata puramente sulla \textit{cosine similarity}. Sfruttando le rappresentazioni vettoriali archiviate, questo approccio è mirato a simulare la ricerca per similarità in un ambiente vettoriale puro, fungendo così da termine di paragone fondamentale per la successiva fase di benchmarking tra l'interrogazione puramente semantica e quella arricchita dalla struttura a grafo.
-    \item L'implementazione di una \textbf{ricerca ibrida (vettoriale e strutturale)}, in cui il calcolo della similarità semantica viene arricchito dalla topologia del grafo. In questa configurazione, il database non si limita a ospitare gli \textit{embedding} testuali, ma sfrutta le relazioni gerarchiche, sequenziali e logiche del corpus normativo. Questo approccio permette di combinare il recupero dell'informazione semantica con il contesto relazionale fornito dalla struttura del documento.
-\end{itemize}
+Il database Neo4j costituisce il punto di integrazione tra i due macroprocessi. Durante l'acquisizione riceve nodi, relazioni ed embedding; durante l'interrogazione fornisce invece i candidati semanticamente pertinenti e il contesto strutturale necessario per arricchirli.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\textwidth]{_images/architettura-software.png}
-    \caption{Architettura del sistema}
+    \includegraphics[width=\textwidth]{_images/architettura-software.png}
+    \caption{Architettura complessiva del sistema.}
     \label{fig:architettura-software}
 \end{figure}
+
+La separazione tra i due flussi evita che le operazioni costose di parsing, strutturazione e vettorizzazione debbano essere ripetute per ogni query. Tali attività vengono svolte in anticipo, mentre in fase di ricerca si eseguono soltanto le operazioni necessarie al recupero delle informazioni.
+
+\section{Architettura della pipeline di acquisizione e indicizzazione}
+
+La pipeline offline comprende cinque responsabilità principali: acquisizione dei documenti, estrazione del testo, strutturazione, persistenza e indicizzazione vettoriale.
+
+\subsection{Acquisizione ed estrazione del testo}
+
+Il punto di ingresso è costituito dai documenti normativi in formato PDF. Un componente di triage ne analizza le caratteristiche e seleziona la strategia di estrazione più appropriata. I documenti digitali strutturati possono essere elaborati sfruttando direttamente le informazioni logiche incorporate nel file; quelli con layout complesso richiedono un'analisi più articolata; per le pagine acquisite come immagini è invece necessario il riconoscimento ottico dei caratteri.
+
+L'output comune di questa fase è un documento in formato Markdown. La scelta di un formato intermedio testuale separa l'acquisizione fisica del PDF dalla successiva interpretazione logica: i componenti a valle non devono conoscere il parser utilizzato e ricevono sempre una rappresentazione uniforme. Il Markdown conserva inoltre elementi utili, quali titoli, paragrafi ed elenchi, senza introdurre la complessità del formato sorgente.
+
+\subsection{Strutturazione gerarchica e relazioni legali}
+
+Il testo estratto viene sottoposto a un modello linguistico con il compito di ricostruire l'organizzazione dell'atto. Questa elaborazione è articolata in due passaggi. Nel primo vengono riconosciuti i metadati e la gerarchia composta da titoli, capi, articoli e commi; nel secondo vengono individuati i collegamenti giuridico-logici tra le disposizioni, come citazioni, deroghe, interpretazioni, abrogazioni e sostituzioni.
+
+Il risultato viene rappresentato mediante file JSON conformi a uno schema prestabilito. Il JSON assume quindi il ruolo di contratto tra il modulo di strutturazione e il modulo di persistenza.
+
+
+\subsection{Persistenza nel Knowledge Graph}
+
+I dati strutturati vengono trasformati in entità del dominio e importati in Neo4j. Il grafo conserva tre categorie di informazione:
+
+\begin{itemize}
+    \item la \textbf{gerarchia documentale}, che collega l'ente emittente all'atto e quest'ultimo a titoli, capi, articoli e commi;
+    \item la \textbf{sequenza testuale}, che rappresenta l'ordine dei commi appartenenti allo stesso articolo;
+    \item le \textbf{relazioni legali}, che collegano disposizioni semanticamente o giuridicamente dipendenti.
+\end{itemize}
+
+Il comma costituisce l'unità atomica scelta per il recupero dell'informazione. Tale granularità permette di restituire porzioni circoscritte del testo senza perdere la possibilità di risalire ai contenitori gerarchici o di raggiungere disposizioni collegate. Ogni nodo è inoltre dotato di un identificativo che ne codifica la provenienza e la posizione nel documento, rendendo possibile ricostruire il percorso dall'informazione recuperata alla fonte originale.
+
+\subsection{Generazione e memorizzazione degli embedding}
+
+Dopo il popolamento del grafo, il contenuto dei commi viene convertito in rappresentazioni vettoriali. Gli embedding semantici codificano il significato linguistico del testo e rendono confrontabili le unità normative con le query degli utenti. Per evitare che un comma venga rappresentato come frammento completamente isolato, il processo può includere informazioni provenienti dalla sua gerarchia oppure dal resto dell'articolo, secondo la strategia supportata dal modello selezionato.
+
+Gli embedding vengono memorizzati come proprietà dei nodi di tipo \texttt{Paragraph}. In questo modo, testo, provenienza, posizione nel documento e rappresentazione vettoriale rimangono associati alla stessa entità. A essi si affiancano gli embedding strutturali generati a partire dalla topologia del grafo, destinati a rappresentare la vicinanza tra nodi sulla base delle relazioni anziché del solo contenuto testuale.
+
+La memorizzazione nel medesimo database consente di passare dal risultato di una ricerca semantica alla navigazione delle relazioni con un'unica infrastruttura di persistenza.
+
+\section{Modello informativo e flusso dei dati}
+
+Nel corso della pipeline, lo stesso documento attraversa rappresentazioni differenti, ciascuna delle quali risponde a una responsabilità specifica:
+
+\begin{center}
+\texttt{PDF $\rightarrow$ Markdown $\rightarrow$ JSON $\rightarrow$ grafo $\rightarrow$ embedding}
+\end{center}
+
+Il PDF costituisce la fonte originale; il Markdown rappresenta il testo normalizzato; il JSON descrive in forma esplicita le entità e le relazioni riconosciute; il grafo rende tali informazioni persistenti e navigabili; gli embedding aggiungono infine una rappresentazione numerica adatta al recupero semantico.
+
+Nel modello concettuale, un ente emette uno o più atti normativi. Ciascun atto contiene una gerarchia che può comprendere titoli, capi, articoli e commi. Poiché non tutti i documenti presentano ogni livello, il modello ammette percorsi nei quali alcuni contenitori intermedi sono assenti. Le relazioni trasversali trasformano questa struttura, altrimenti puramente arborea, in un grafo: un comma può essere connesso al successivo oppure richiamare una disposizione collocata in un altro punto dell'atto.
+
+Questa rappresentazione permette di mantenere distinte tre nozioni di prossimità:
+
+\begin{itemize}
+    \item la \textbf{prossimità semantica}, misurata nello spazio degli embedding testuali;
+    \item la \textbf{prossimità gerarchica e sequenziale}, determinata dalla collocazione degli elementi nel documento;
+    \item la \textbf{prossimità giuridica}, espressa dai riferimenti espliciti tra disposizioni.
+\end{itemize}
+
+La distinzione è rilevante perché due commi possono risultare semanticamente simili pur appartenendo a contesti differenti oppure, al contrario, essere lessicalmente diversi ma strettamente collegati da una relazione normativa.
+
+\section{Architettura della pipeline di interrogazione}
+
+La pipeline online riceve una domanda in linguaggio naturale e produce una graduatoria di unità normative pertinenti. Per garantire un confronto controllato, le strategie di ricerca condividono il corpus, l'unità di indicizzazione e la rappresentazione della query; differiscono invece per l'impiego delle informazioni topologiche.
+
+\subsection{Ricerca vettoriale}
+
+Nella configurazione di base, la query viene trasformata in un embedding mediante lo stesso modello utilizzato per indicizzare i commi. Il vettore ottenuto viene confrontato con quelli memorizzati nel database e i nodi vengono ordinati sulla base della similarità coseno. Il risultato è costituito dai primi $k$ commi della graduatoria.
+
+Questa strategia utilizza esclusivamente la vicinanza nello spazio semantico durante la selezione dei risultati e rappresenta pertanto la baseline rispetto alla quale valutare l'apporto della struttura. La presenza del grafo come supporto di memorizzazione non implica, in questo caso, che le sue relazioni contribuiscano al ranking.
+
+\subsection{Ricerca arricchita dalla struttura}
+
+La seconda configurazione parte ugualmente dalla query e dal recupero di candidati semanticamente pertinenti, ma integra le informazioni contenute nella topologia. A partire dai nodi individuati è possibile considerare il contesto gerarchico, i commi adiacenti e le disposizioni collegate da relazioni legali. Gli embedding strutturali forniscono inoltre una rappresentazione numerica della posizione dei commi nella rete.
+
+Il grafo non sostituisce quindi la ricerca semantica, ma introduce segnali ulteriori con cui arricchire il recupero. Questa separazione consente di attribuire le eventuali differenze osservate all'impiego della struttura, mantenendo invariati gli altri elementi del processo sperimentale. La definizione puntuale degli algoritmi, dei parametri di combinazione e delle metriche di valutazione viene presentata nei capitoli dedicati al benchmark.
+
+\section{Deployment e comunicazione tra i componenti}
+
+I moduli principali sono eseguiti in container Docker distinti. Tale organizzazione isola dipendenze eterogenee, quali runtime Java, librerie Python, motori OCR e componenti di elaborazione vettoriale, e permette di aggiornare una fase senza modificare l'ambiente delle altre.
+
+La comunicazione tra le fasi offline avviene attraverso gli artefatti prodotti dalla pipeline e mediante il database condiviso. Markdown e JSON costituiscono punti di disaccoppiamento espliciti, mentre Neo4j rappresenta l'interfaccia persistente tra indicizzazione e interrogazione. La separazione in container non implica necessariamente un'esecuzione distribuita, ma predispone il sistema a elaborare in futuro lotti distinti di documenti mediante istanze indipendenti.
