@@ -54,15 +54,14 @@ Il cuore intelligente del sistema risiede nei modelli di linguaggio e di embeddi
         \item \textbf{Rapporto costo/qualità:} Rispetto a modelli più potenti ma significativamente più costosi (come GPT-4 o Claude), Gemini 3.5 Flash ha offerto un compromesso ottimale tra qualità dell'output strutturato e costo per token, aspetto rilevante considerando l'elaborazione batch di centinaia di documenti.
     \end{itemize}
 
-    \item \textbf{Modelli di Embedding:} La vettorializzazione del testo normativo rappresenta un elemento critico per la qualità della ricerca semantica. Sono stati testati molteplici modelli per identificare la soluzione più efficace nel dominio giuridico italiano. I test più approfonditi hanno coinvolto i seguenti modelli:
+    \item \textbf{Modelli di Embedding:} La vettorializzazione del testo normativo rappresenta un elemento critico per la qualità della ricerca semantica. Sono stati confrontati molteplici modelli per osservarne il comportamento sul dominio giuridico italiano, distinguendo la completezza del recupero dalla qualità dell'ordinamento anziché assumere l'esistenza di un vincitore unico. I test più approfonditi hanno coinvolto i seguenti modelli:
     \begin{itemize}
         \item \textbf{\texttt{google/embeddinggemma-300m}:} Modello sviluppato da Google che trasforma il testo in vettori a 768 dimensioni. È costruito sull'architettura Gemma 3 ed è addestrato su oltre 100 lingue. Mediante la tecnica \textit{Matryoshka Representation Learning}, la rappresentazione può essere ridotta a 512, 256 o 128 dimensioni, introducendo un compromesso tra compattezza e qualità dell'embedding \cite{embeddinggemma}.
         
         \item \textbf{\texttt{perplexity-ai/pplx-embed-v1-0.6b}:} Modello sviluppato da Perplexity AI che produce vettori a 1024 dimensioni ed è progettato per compiti di retrieval multilingue, tra cui la ricerca semantica e i sistemi RAG \cite{eslami2026pplxembed}.
         
         \item \textbf{\texttt{perplexity-ai/pplx-embed-context-v1-0.6b}:} Variante contestuale del modello Perplexity, anch'essa produce vettori a 1024 dimensioni. Durante la rappresentazione dei singoli chunk incorpora informazioni provenienti dal contesto globale del documento, anziché trattare ciascun frammento in modo completamente isolato \cite{eslami2026pplxembed}. Il modello applica il principio del \textit{Late Chunking} \cite{latechunking}, con l'obiettivo di preservare nelle rappresentazioni locali una parte dell'informazione disponibile nel documento completo.
-\end{itemize}
-    La valutazione si è basata sulla capacità di ciascun modello di recuperare i commi pertinenti a partire da query in linguaggio naturale. A questo scopo, la \textit{Precision@k} è stata impiegata per misurare la quota di risultati pertinenti presente nelle prime $k$ posizioni della graduatoria, mentre il \textit{Mean Reciprocal Rank} (MRR) ha permesso di valutare quanto precocemente comparisse il primo risultato pertinente. Si tratta di due metriche consolidate nell'ambito dell'Information Retrieval, complementari perché descrivono rispettivamente la qualità complessiva dei primi risultati e la rapidità con cui il sistema individua una risposta rilevante \cite{manning2008introduction}.
+    \end{itemize}
 \end{itemize}
 
 \section{Deployment e Containerizzazione}

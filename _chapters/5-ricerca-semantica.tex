@@ -1,0 +1,208 @@
+\chapter{Ricerca Semantica}\label{chap:fifth}
+
+\inlineminitoc
+
+Il Capitolo~\ref{chap:fourth} ha descritto come i documenti normativi diventano un grafo di nodi, relazioni ed embedding. Questo capitolo descrive che cosa accade quando una domanda in linguaggio naturale arriva a quella base di conoscenza, e definisce con precisione le due strategie di recupero che il Capitolo~\ref{chap:sixth} mette a confronto sperimentalmente.
+
+La distinzione fra le due strategie è deliberatamente stretta. Entrambe interrogano lo stesso grafo, indicizzano la stessa unità testuale, ricevono la stessa domanda codificata con lo stesso modello di embedding e restituiscono lo stesso numero di risultati. Differiscono per un solo elemento: se le relazioni giuridiche memorizzate nel grafo intervengano o meno nell'ordinamento dei risultati. Questa è la variabile indipendente dell'intero lavoro sperimentale, e l'obiettivo del presente capitolo è renderla l'unica.
+
+\section{Le due strategie e che cosa isolano}
+
+Il sistema espone due strategie di recupero, denominate nei log e nelle tabelle dei capitoli successivi \textbf{S1} e \textbf{S2}:
+
+\begin{itemize}
+    \item \textbf{S1 --- \texttt{FullVectorSearchStrategy}}: ricerca vettoriale pura. La domanda diventa un vettore, i commi vengono ordinati per similarità coseno e i primi $k$ costituiscono il risultato. Il grafo interviene unicamente come supporto di memorizzazione: le sue relazioni non sono percorse e non influenzano l'ordinamento. Questa strategia è la \textit{baseline}.
+    \item \textbf{S2 --- \texttt{ArticleWindowSearchStrategy}}: ricerca ibrida. La ricerca vettoriale produce un bacino ampio di candidati; le relazioni giuridiche del grafo producono una seconda graduatoria a partire dai primi risultati vettoriali; le due graduatorie vengono fuse. Questa è la strategia di produzione, quella che la CLI serve per impostazione predefinita.
+\end{itemize}
+
+È importante chiarire fin d'ora una proprietà che la Sezione~\ref{sec:aritmetica_fusione} dimostrerà numericamente: \textbf{S2 non è un sistema che recupera documenti diversi da S1, è un sistema che li ordina diversamente}. Il grafo, per come è configurato, non può introdurre nel risultato finale un comma che la ricerca vettoriale non aveva già recuperato nel proprio bacino. Agisce come \textit{re-ranker} di quel bacino. Questa non è una limitazione accidentale ma una scelta di progetto, verificata sperimentalmente nella Sezione~\ref{sec:peso_legale}.
+
+Nessuna delle due strategie riceve informazioni sul tipo di domanda, sui documenti attesi o sulle etichette del benchmark. Il modulo di recupero riceve esclusivamente la stringa della domanda; le etichette esistono solo dentro il modulo di valutazione e non attraversano mai il confine. Questa separazione evita che il recupero utilizzi direttamente le risposte attese e rende possibile un confronto controllato fra le strategie. Non rende tuttavia il benchmark una stima del traffico di produzione: la composizione delle domande e i limiti della sua generalizzabilità sono dichiarati nel Capitolo~\ref{chap:sixth}.
+
+\section{S1: la ricerca vettoriale pura}
+\label{sec:ricerca_vettoriale_pura}
+
+La strategia di base realizza il percorso descritto in forma generale nella Sezione~\ref{sec:creazione_embedding}. La domanda viene codificata con il medesimo modello impiegato per indicizzare i commi --- condizione necessaria, perché due modelli diversi producono spazi vettoriali non confrontabili --- e il vettore risultante viene sottoposto a Neo4j tramite l'indice vettoriale del nodo \texttt{:Paragraph}.
+
+\begin{lstlisting}[language=Cypher, caption={Interrogazione dell'indice vettoriale per la ricerca di base}, label={lst:cypher_vector}]
+CALL db.index.vector.queryNodes($index_name, $top_k, $query_vector)
+YIELD node, score
+MATCH (act:LegalAct)-[:HAS_TITLE|HAS_CHAPTER|HAS_ARTICLE*1..4]->
+      (art:Article)-[:HAS_PARAGRAPH]->(node)
+RETURN node.custom_id AS paragraph_custom_id,
+       act.title AS atto, art.number AS num_articolo,
+       node.number AS num_comma, node.text AS testo, score
+ORDER BY score DESC
+\end{lstlisting}
+
+L'indice restituisce i vicini approssimati del vettore di query; la risalita gerarchica successiva serve unicamente ad arricchire ciascun risultato con la sua provenienza documentale, affinché il risultato restituito all'utente sia citabile. Non modifica l'ordine.
+
+Il costo computazionale è quello dell'\textit{Approximate Nearest Neighbor Search}: sui 6.396 commi del corpus la latenza mediana misurata è di circa 16--20~ms per interrogazione, esclusa la codifica della domanda.
+
+Questa strategia incarna un'ipotesi precisa sul dominio: che la pertinenza di un comma rispetto a una domanda sia catturabile dalla vicinanza semantica fra il testo della domanda e il testo del comma. È un'ipotesi ragionevole e, come mostrerà il Capitolo~\ref{chap:sixth}, spesso sufficiente. Il suo limite emerge quando la risposta completa richiede una disposizione che il comma pertinente \textit{richiama} senza riprodurne il contenuto. In quel caso il comma richiamato può essere lessicalmente e semanticamente distante dalla domanda: un encoder può ancora recuperarlo attraverso segnali presenti nel testo, ma non dispone di una rappresentazione esplicita del rinvio che ne giustifica la pertinenza.
+
+\section{S2: la ricerca arricchita dalla struttura}
+
+La strategia ibrida è organizzata in stadi successivi, implementati rispettivamente in \texttt{modules/vector\_module.py}, \texttt{modules/window\_module.py} e \texttt{modules/fusion\_module.py}, e integrati in \texttt{strategies/article\_window\_search.py}. Tutti i limiti numerici sono centralizzati nella classe di configurazione \texttt{ArticleWindowParameters}.
+
+\begin{center}
+\texttt{Top-200 vettoriale $\rightarrow$ relazioni giuridiche $\rightarrow$ RRF pesato $\rightarrow$ testa riservata $\rightarrow$ gate}
+\end{center}
+
+\subsection{Stadio 1: il bacino vettoriale}
+
+Il primo stadio è identico a S1, ma con un cutoff molto più ampio: vengono recuperati i \textbf{primi 200} commi per similarità coseno. Questa lista, denominata \texttt{vector\_pool}, costituisce l'insieme di tutti i candidati che potranno comparire nel risultato finale.
+
+La scelta di un bacino ampio ha una motivazione precisa. Il compito del grafo non è trovare commi che la ricerca vettoriale non vede affatto, ma \textit{promuovere} commi che la ricerca vettoriale vede male: un comma che il coseno colloca in posizione 30 o 120, troppo in basso per essere restituito, ma che una relazione giuridica raggiunge a partire da un risultato di testa. Un bacino di 200 elementi rende visibili al meccanismo di fusione proprio quei casi.
+
+\subsection{Stadio 2: i semi del ramo giuridico}
+
+I \textbf{primi 5} commi del bacino vettoriale vengono designati come \textit{semi} (\textit{seeds}) dell'espansione a grafo. Sono gli unici nodi da cui le relazioni verranno percorse.
+
+Il numero è piccolo, e lo è per una ragione sperimentale. L'implementazione originaria impiegava 20 semi, e il risultato era un peggioramento sistematico: una citazione che parte dal quarantesimo comma migliore non è un indizio, è rumore. Il ramo giuridico ha senso solo se i punti da cui parte sono essi stessi affidabili, perché il suo compito è raggiungere ciò che è \textit{collegato a una risposta corretta}, non ciò che è collegato a un candidato qualsiasi.
+
+\subsection{Stadio 3: il ramo giuridico}
+
+Da ciascun seme viene percorso, con un'unica interrogazione Cypher, l'insieme delle relazioni giuridiche descritte nella Sezione~\ref{sec:estrazione_relazioni}: \texttt{CITES}, \texttt{DEROGATES}, \texttt{INTERPRETS}, \texttt{REPEALS} e \texttt{REPLACES}. Le relazioni sono percorse in \textbf{entrambe le direzioni}: se un comma cita una disposizione, quella disposizione è pertinente al comma, ma è vero anche il contrario --- una norma successiva che deroga alla norma trovata è altrettanto necessaria per rispondere correttamente.
+
+Ogni comma raggiunto riceve un punteggio pari al coseno del seme da cui proviene, moltiplicato per un coefficiente che dipende dal tipo di relazione:
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{|l|c|l|}
+        \hline
+        \textbf{Relazione} & \textbf{Moltiplicatore} & \textbf{Natura del legame} \\
+        \hline
+        \texttt{REPEALS}, \texttt{REPLACES} e \texttt{DEROGATES} & 1,00 & modifica l'efficacia della norma \\
+        \texttt{INTERPRETS} & 0,90 & vincola l'interpretazione \\
+        \texttt{CITES} & 0,70 & rinvio generico \\
+        \hline
+    \end{tabular}
+    \caption{Moltiplicatori per tipo di relazione giuridica nel ramo a grafo.}
+    \label{tab:moltiplicatori_relazione}
+\end{table}
+
+La gerarchia riflette la forza giuridica del legame, con lo stesso criterio adottato per i pesi di Node2Vec nella Sezione~\ref{sec:creazione_embedding}: una disposizione che abroga o deroga alla norma trovata è \textit{necessaria} per una risposta corretta, mentre una citazione generica è soltanto \textit{pertinente}.
+
+La lista risultante viene deduplicata e troncata a \texttt{top\_k} $\times$ 2 righe.
+
+
+\subsection{Stadio 4: la fusione RRF pesata}
+\label{sec:aritmetica_fusione}
+
+Le due graduatorie --- quella vettoriale e quella giuridica --- vengono combinate con una variante pesata della \textit{Reciprocal Rank Fusion}. Per ciascun comma $d$:
+
+\begin{equation}
+    \mathrm{score}(d) \;=\; \sum_{i \in \{\text{vett}, \text{leg}\}} \frac{w_i}{k_{\mathrm{RRF}} + \mathrm{rank}_i(d)}
+    \label{eq:rrf}
+\end{equation}
+
+con $k_{\mathrm{RRF}} = 60$, $w_{\text{vett}} = 4$ e $w_{\text{leg}} = 3$. Un comma presente in una sola lista riceve un solo addendo; un comma presente in entrambe li raccoglie entrambi, e quella somma è l'intero meccanismo della strategia.
+
+La RRF opera sui \textit{ranghi} e non sui punteggi, il che la rende immune al fatto che un coseno e un punteggio di relazione non siano grandezze commensurabili. Inoltre, poiché l'equazione~\ref{eq:rrf} è lineare nei pesi, soltanto il loro \textbf{rapporto} determina l'ordinamento: moltiplicare entrambi i pesi per una costante riscala ogni punteggio e lascia l'ordine invariato. Per questa ragione i pesi sono scritti come \texttt{4/3} e non come \texttt{0,40/0,30}: è la stessa configurazione, espressa alla precisione che le misure sostengono effettivamente.
+
+La Tabella~\ref{tab:aritmetica_rrf} mostra il comportamento concreto della formula.
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{|l|r|l|}
+        \hline
+        \textbf{Condizione del comma} & \textbf{Punteggio RRF} & \textbf{Esito} \\
+        \hline
+        solo vettoriale, rango 1 & 0,006557 & resta in testa \\
+        solo vettoriale, rango 10 & 0,005714 & ultimo ammesso \\
+        solo vettoriale, rango 30 & 0,004444 & fuori dal Top-10 \\
+        vettoriale rango 30 \textbf{+} primo del ramo & \textbf{0,009362} & \textbf{promosso in testa} \\
+        mai recuperato, primo del ramo & 0,004918 & resta fuori dal Top-10 \\
+        \hline
+    \end{tabular}
+    \caption{Comportamento della fusione RRF pesata con $k_{\mathrm{RRF}}=60$ e pesi 4/3.}
+    \label{tab:aritmetica_rrf}
+\end{table}
+
+L'ultima riga contiene la proprietà annunciata all'inizio del capitolo. Poiché $3 < 4$, un comma che il grafo raggiunge ma che la ricerca vettoriale non aveva recuperato non può mai superare un comma che essa aveva recuperato: la fusione \textbf{riordina il bacino vettoriale e non lo estende}. La soglia esatta di ingresso è un peso giuridico pari a $4 \times 61/70 = 3{,}49$, e restare sotto di essa è una scelta verificata (Sezione~\ref{sec:peso_legale}) e non un accidente.
+
+Nel run principale, il \textbf{12,6\%} dei commi presenti nel Top-10 finale non compariva nel Top-10 di S1. Questi commi erano però già presenti nel bacino vettoriale di 200 elementi e conservano pertanto l'etichetta \texttt{VECTOR}, anche quando la loro presenza nella lista giuridica contribuisce a promuoverli. Nessuna riga finale è etichettata \texttt{LEGAL}: le due osservazioni insieme descrivono il ruolo del grafo nella configurazione adottata, che non aggiunge candidati estranei al bacino vettoriale ma ne modifica l'ordinamento.
+
+\subsection{Stadio 5: la testa riservata alla vettoriale}
+\label{sec:testa_riservata}
+
+La fusione, per come è costruita, premia i commi che compaiono in entrambe le liste. Questo è l'obiettivo della strategia, ma comporta un rischio specifico: il comma che risponde \textit{direttamente} alla domanda --- quello che il coseno aveva collocato al primo posto --- può essere scavalcato da un comma collegato, che il grafo ha promosso. Per una risposta completa questo è irrilevante, perché entrambi sono nel risultato; ma per un sistema a valle che legge i risultati nell'ordine in cui arrivano, non lo è affatto.
+
+Il meccanismo che previene questo effetto è la \textbf{testa riservata}: i primi $\mathrm{round}(k \times 0{,}2)$ ranghi del risultato finale vengono riportati in puro ordine di coseno. Sono 2 posizioni in un Top-10, 1 in un Top-5, 3 in un Top-14. Le righe sono quelle prodotte dalla fusione, con il loro punteggio e la loro provenienza; soltanto l'ordine viene ripristinato.
+
+Una conseguenza visibile nell'output della CLI: i punteggi RRF stampati \textbf{non} sono monotonamente decrescenti lungo la testa, perché un comma promosso subito al di sotto di essa può portare un punteggio superiore a quello del primo risultato. Non è un errore di ordinamento, è la riserva che agisce.
+
+L'efficacia di questo componente è netta e viene riportata per intero nel Capitolo~\ref{chap:sixth}. Va però anticipato che si tratta di uno scambio dichiarato e non di un guadagno gratuito: le righe che la fusione promuoverebbe nei primi due ranghi sono commi attesi nel \textbf{49,1\%} dei casi, contro il \textbf{31,2\%} delle righe che la testa mantiene. La testa cede quindi un po' di copertura in cima per riportare al primo posto il comma che effettivamente risponde.
+
+\subsection{Un componente rimosso: il pavimento vettoriale}
+
+Una versione precedente della strategia affiancava alla testa un secondo presidio, il \textit{pavimento vettoriale}: una garanzia che i primi $\mathrm{round}(k \times \text{ratio})$ risultati vettoriali comparissero nel risultato finale, indipendentemente dalla fusione. I due presidi erano concettualmente distinti --- la testa fissa un \textit{ordine}, il pavimento una \textit{appartenenza} --- e sono stati misurati separatamente, risultando effettivamente ortogonali.
+
+Il pavimento è stato rimosso (\texttt{floor\_ratio = 0.0}) perché il suo guadagno non sopravvive fuori dallo split su cui era stato scelto. La Tabella~\ref{tab:pavimento} riporta la misura che ha determinato la decisione.
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{|l|c|c|}
+        \hline
+        \textbf{Insieme di domande} & \textbf{Complete HIT@5} & \textbf{bilancio appaiato} \\
+        \hline
+        banco intero & 73,4\% contro 72,4\% & 4 vinte / 2 perse \\
+        split \texttt{dev} (di selezione) & 71,8\% contro 69,2\% & 2 vinte / 0 perse \\
+        split \texttt{test} (tenuto da parte) & 74,6\% contro 74,6\% & 2 vinte / 2 perse \\
+        \hline
+    \end{tabular}
+    \caption{Effetto del pavimento vettoriale, con e senza, per insieme di valutazione.}
+    \label{tab:pavimento}
+\end{table}
+
+Un guadagno che esiste soltanto sullo split su cui il parametro è stato scelto non è un guadagno: è la definizione stessa di adattamento al banco di prova. Ciò che si perde non è però nullo, e vale la pena registrarlo: il pavimento copriva un modo di fallimento reale --- casi in cui la fusione espelle dal Top-5 un comma primario che il coseno aveva collocato al secondo posto --- semplicemente troppo raro perché questo banco lo distingua dal rumore.
+
+\subsection{Perché il peso giuridico resta 3}
+\label{sec:peso_legale}
+
+Il rapporto fra i due pesi della fusione è stato esplorato sistematicamente su diciannove valori, dal rapporto 0,375 al rapporto 1,5, sulle domande con risposta e su tutti e tre i modelli di embedding.
+
+Il risultato più istruttivo è un'assenza di risultato: fra i rapporti da 0,625 a 1,5 --- quindici punti su diciannove --- lo split di selezione restituisce la \textit{medesima} graduatoria, con 0 vittorie e 0 sconfitte appaiate in ogni punto. Lo split interrogato sul rapporto non ha opinione, ed è precisamente questa la ragione per cui il valore adottato è scritto con una cifra e non con tre.
+
+La domanda vera dello \textit{sweep} era però un'altra: che cosa accade superando la soglia di ingresso di 3,49, cioè permettendo al grafo di aggiungere candidati anziché limitarsi a riordinare. La risposta è misurata: al di sopra della soglia entrano effettivamente 21 righe di sola provenienza giuridica su 3.450 restituite, e \textbf{2 di esse sono commi attesi: una precisione del 9,5\% contro il 13,7\% delle righe che spodestano}. Consentire al grafo di ampliare il bacino peggiora la riga media, a fronte di un guadagno complessivo di tre decimi di punto. Stare sotto la soglia è il lato giusto su cui trovarsi.
+
+Un'ultima osservazione, che il capitolo successivo riprenderà: la metrica che misura il rango della prima risposta corretta assume lo stesso valore in \textbf{tutti e diciannove} i punti dello \textit{sweep}, fino all'ultimo decimale. Quel rango appartiene interamente alla testa riservata, e nessun peso della fusione lo tocca.
+
+\subsection{Un ramo rimosso: l'adiacenza fra commi}
+
+Accanto al ramo giuridico ha operato per un certo periodo un secondo ramo, che percorreva la relazione \texttt{NEXT\_PARAGRAPH} per raggiungere i commi contigui a quelli trovati. L'intuizione è forte: se la risposta sta nel comma 3 di un articolo, è probabile che il comma 4 la completi.
+
+È stata misurata a tutti i pesi che il ramo aveva storicamente assunto, e la traiettoria è monotona nella direzione sbagliata: peso 0,20 peggiore di 0,10, peso 0,10 peggiore di zero. Rimuoverlo vale \textbf{+0,6 punti} di completezza a Top-10 e \textbf{+2,6} a Top-5. Misurati isolatamente, il ramo giuridico da solo raggiunge l'83,8\% di completezza a Top-10, mentre l'adiacenza da sola raggiunge il 71,9\%, cioè \textit{al di sotto} del 72,2\% della sola graduatoria vettoriale.
+
+Il costo della rimozione è concentrato dove ci si attende, sulle domande la cui risposta è distribuita su più commi dello stesso articolo, ed è ripagato da guadagni su quattro slice diverse. L'intero contributo del grafo, in questo sistema, è il ramo giuridico. Un terzo ramo che raggiungeva i commi fratelli attraverso \texttt{HAS\_PARAGRAPH} era stato rimosso ancora prima, con un bilancio che si commenta da sé: 243 righe emesse per 7 commi attesi.
+
+\section{Il gate di answerability}
+
+L'ultimo stadio della pipeline di produzione non ordina risultati: decide se restituirli. Un sistema di recupero puramente vettoriale restituisce sempre qualcosa, perché il comma più vicino al vettore della domanda esiste sempre, anche quando il corpus non contiene affatto la risposta. Per un sistema destinato ad alimentare una generazione di risposte, questo è il modo di fallimento peggiore, perché produce un'allucinazione fondata su una fonte citabile.
+
+Il presidio adottato è un \textit{cross-encoder} che valuta i primi \textbf{5} commi della graduatoria \textbf{vettoriale} con un'unica sigmoide; se nessuno raggiunge la soglia di 0,205 la domanda viene rifiutata e la ricerca restituisce una lista vuota, altrimenti il Top-K fuso viene restituito senza modifiche. Il gate non riordina mai nulla.
+
+Due dettagli di progetto meritano attenzione. Primo, il gate è interrogato sulla graduatoria \textit{vettoriale} e non su quella fusa: le righe promosse dal grafo sono per costruzione commi collegati, quindi rispondono peggio alla domanda «esiste qui la risposta?» di quanto non facciano i migliori risultati per similarità diretta. Secondo, questa è l'\textbf{unica} decisione di risponditività della pipeline. Una versione precedente affiancava al gate due soglie sul coseno --- sotto 0,50 rifiuto immediato, sopra 0,80 gate saltato --- ed entrambe sono state rimosse dopo misura:
+
+\begin{itemize}
+    \item la \textbf{soglia bassa non ha mai agito}: il coseno più basso osservato al primo posto su tutte le valutazioni, negative incluse, è 0,692, cioè al di sopra del taglio;
+    \item la \textbf{soglia alta non separava}: con un modello le domande senza risposta raggiungono 0,795 contro un taglio di 0,80, mentre domande legittime scendono a 0,762. Il coseno, misurato come segnale, non è debole in sé, ma 0,80 non era mai stato calibrato e cadeva dentro la zona di sovrapposizione; quale lato della soglia toccasse a una domanda dipendeva dal modello di embedding.
+\end{itemize}
+
+Nel benchmark del Capitolo~\ref{chap:sixth} il gate è \textbf{disattivato}. La ragione è metodologica: il benchmark esiste per misurare se il grafo migliori o peggiori il recupero, e un componente che restituisce liste vuote nasconderebbe quella misura dietro la propria calibrazione. Il verdetto del gate viene registrato a parte.
+
+\section{Provenienza e riproducibilità}
+
+Ogni riga restituita da S2 porta con sé la propria provenienza: l'etichetta \texttt{VECTOR} o \texttt{LEGAL}, il seme da cui è stata raggiunta, la distanza nel grafo, la relazione giuridica percorsa e la sua direzione. Questo non serve soltanto alla diagnostica: un sistema che opera su testi normativi deve poter dichiarare \textit{perché} ha proposto una disposizione, e «perché l'articolo 13 la richiama» è una giustificazione di natura diversa, e verificabile, rispetto a «perché il suo testo assomiglia alla domanda».
+
+I pareggi vengono risolti sugli identificativi stabili dei commi, quindi due esecuzioni della stessa configurazione sullo stesso grafo producono lo stesso ordinamento.
+
+\section{Sintesi del capitolo}
+
+Le due strategie confrontate nel capitolo successivo condividono corpus, unità di indicizzazione, modello di embedding e cutoff, e differiscono soltanto per l'intervento delle relazioni giuridiche nell'ordinamento. La strategia ibrida recupera un bacino vettoriale di 200 commi, espande i primi 5 lungo cinque tipi di relazione giuridica in entrambe le direzioni, fonde le due graduatorie con una RRF pesata 4/3 e restituisce alla pura similarità coseno i primi due ranghi del risultato.
+
+Il rapporto fra i pesi colloca deliberatamente la strategia \textit{sotto} la soglia oltre la quale il grafo potrebbe aggiungere candidati propri: il meccanismo riordina il bacino vettoriale senza estenderlo. Tre componenti sono stati rimossi nel corso dello sviluppo --- il ramo di adiacenza, il ramo dei commi fratelli e il pavimento vettoriale --- ciascuno perché la misura non ne sosteneva il costo, e il Capitolo~\ref{chap:sixth} riporta gli esperimenti corrispondenti insieme al confronto principale.
