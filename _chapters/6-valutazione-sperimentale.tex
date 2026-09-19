@@ -83,7 +83,7 @@ Tutte le medie sono calcolate prima dentro ciascun modello e poi fra i modelli, 
 
 \subsection{Configurazione sperimentale}
 
-Le misure riportate provengono dall'esecuzione \texttt{20260918T180810.030837Z} sul benchmark diagnostico. L'esecuzione utilizza le stesse classi impiegate dalla CLI, non una loro riproduzione, e mantiene il gate di answerability disattivato per le ragioni esposte nel Capitolo~\ref{chap:fifth}. Il log registra il commit, lo stato dell'albero di lavoro, le impronte dei sorgenti e tutti i parametri, oltre al Top-10 effettivamente restituito per ciascuna domanda.
+Le misure riportate provengono dall'esecuzione \texttt{20260918T180810.030837Z} sul benchmark diagnostico. L'esecuzione utilizza le stesse classi impiegate dalla CLI, non una loro riproduzione. Il log registra il commit, lo stato dell'albero di lavoro, le impronte dei sorgenti e tutti i parametri, oltre al Top-10 effettivamente restituito per ciascuna domanda.
 
 I modelli di embedding confrontati sono i tre già introdotti nella Sezione~\ref{sec:creazione_embedding}, e il capitolo li impiega in \textbf{due ruoli distinti} che vanno dichiarati prima di leggere qualunque tabella che li elenca fianco a fianco, perché altrimenti la stessa riga sembra dire due cose diverse in due punti diversi del capitolo.
 
@@ -480,7 +480,6 @@ La prima riga meritava di essere verificata perché corrispondeva a un difetto r
 
 L'indagine sui quasi-duplicati ha prodotto un ritrovamento indipendente che vale la pena registrare: fra i soli 1.053 commi osservati nei log esistono \textbf{37 gruppi di testo identico appartenenti ad atti diversi} --- un codice di comportamento in due annualità, tre copie dello stesso regolamento, un contratto disciplinare in due versioni. È un problema di igiene del corpus che riguarda ugualmente tutti e tre i modelli, e che ogni sistema di recupero su normativa pubblica è destinato a incontrare.
 
-\subsection{Un esperimento inconcludente}
 \subsection{Sintesi dell'antitesi}
 
 I risultati non confutano l'utilità del late chunking come tecnica di contestualizzazione intra-articolo. Mostrano invece che, nel benchmark considerato, tale contestualizzazione non assorbe il contributo delle relazioni esplicite: mantenendo fisso l'encoder contestuale, S2 guadagna 11,9 punti di Complete HIT@10 e 8,2 punti di copertura dei commi di supporto rispetto a S1.

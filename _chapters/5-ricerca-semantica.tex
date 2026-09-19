@@ -2,7 +2,7 @@
 
 \inlineminitoc
 
-Il Capitolo~\ref{chap:fourth} ha descritto come i documenti normativi diventano un grafo di nodi, relazioni ed embedding. Questo capitolo descrive che cosa accade quando una domanda in linguaggio naturale arriva a quella base di conoscenza, e definisce con precisione le due strategie di recupero che il Capitolo~\ref{chap:sixth} mette a confronto sperimentalmente.
+Il Capitolo~\ref{chap:fourth} ha descritto come i documenti normativi diventano un grafo di nodi e relazioni, i cui contenuti testuali sono rappresentati mediante embedding semantici. Questo capitolo descrive che cosa accade quando una domanda in linguaggio naturale arriva a quella base di conoscenza, e definisce con precisione le due strategie di recupero che il Capitolo~\ref{chap:sixth} mette a confronto sperimentalmente.
 
 La distinzione fra le due strategie è deliberatamente stretta. Entrambe interrogano lo stesso grafo, indicizzano la stessa unità testuale, ricevono la stessa domanda codificata con lo stesso modello di embedding e restituiscono lo stesso numero di risultati. Differiscono per un solo elemento: se le relazioni giuridiche memorizzate nel grafo intervengano o meno nell'ordinamento dei risultati. Questa è la variabile indipendente dell'intero lavoro sperimentale, e l'obiettivo del presente capitolo è renderla l'unica.
 
@@ -46,7 +46,7 @@ Questa strategia incarna un'ipotesi precisa sul dominio: che la pertinenza di un
 La strategia ibrida è organizzata in stadi successivi, implementati rispettivamente in \texttt{modules/vector\_module.py}, \texttt{modules/window\_module.py} e \texttt{modules/fusion\_module.py}, e integrati in \texttt{strategies/article\_window\_search.py}. Tutti i limiti numerici sono centralizzati nella classe di configurazione \texttt{ArticleWindowParameters}.
 
 \begin{center}
-\texttt{Top-200 vettoriale $\rightarrow$ relazioni giuridiche $\rightarrow$ RRF pesato $\rightarrow$ testa riservata $\rightarrow$ gate}
+\texttt{Top-200 vettoriale $\rightarrow$ relazioni giuridiche $\rightarrow$ RRF pesato $\rightarrow$ testa riservata}
 \end{center}
 
 \subsection{Stadio 1: il bacino vettoriale}
@@ -83,7 +83,7 @@ Ogni comma raggiunto riceve un punteggio pari al coseno del seme da cui proviene
     \label{tab:moltiplicatori_relazione}
 \end{table}
 
-La gerarchia riflette la forza giuridica del legame, con lo stesso criterio adottato per i pesi di Node2Vec nella Sezione~\ref{sec:creazione_embedding}: una disposizione che abroga o deroga alla norma trovata è \textit{necessaria} per una risposta corretta, mentre una citazione generica è soltanto \textit{pertinente}.
+La gerarchia riflette la forza giuridica del legame: una disposizione che abroga o deroga alla norma trovata è \textit{necessaria} per una risposta corretta, mentre una citazione generica è soltanto \textit{pertinente}.
 
 La lista risultante viene deduplicata e troncata a \texttt{top\_k} $\times$ 2 righe.
 
