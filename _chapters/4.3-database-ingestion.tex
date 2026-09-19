@@ -46,7 +46,7 @@ Le \textit{Label} dei nodi sul grafo (ovvero \textbf{Entity}, \textbf{LegalAct},
 
 Un aspetto architetturale chiave, comune a tutti i nodi, è la presenza della proprietà \texttt{custom\_id}. Tale attributo codifica per intero il percorso gerarchico del nodo all'interno del documento (ad esempio, \texttt{ente\_\_atto\_\_title-1\_\_chapter-2\_\_article-3\_\_paragraph-4}). Grazie a questo approccio, il database può sfruttare l'indicizzazione su questa proprietà per individuare immediatamente un singolo nodo, azzerando le operazioni di attraversamento del grafo e garantendo un recupero delle informazioni in tempo costante.
 
-All'interno di questa topologia, i nodi di tipo \textbf{Paragraph} ricoprono un ruolo centrale per le funzionalità avanzate del sistema. Oltre a conservare le proprietà testuali, in questi nodi vengono salvate le rappresentazioni vettoriali dei dati: in particolare, gli embedding semantici a dimensione variabile e un embedding strutturale a 128 dimensioni calcolato mediante l'algoritmo di \textit{Node2Vec} (maggiori informazioni sono nel capitolo \ref{sec:creazione_embedding}). L'archiviazione di tali vettori è progettata per abilitare le successive operazioni di interrogazione.
+All'interno di questa topologia, i nodi di tipo \textbf{Paragraph} ricoprono un ruolo centrale per le funzionalità avanzate del sistema. Oltre a conservare le proprietà testuali, in questi nodi vengono salvati gli embedding semantici a dimensione variabile. L'archiviazione di tali vettori è progettata per abilitare le successive operazioni di interrogazione.
 
 L'ecosistema di relazioni (\textit{Edges}) all'interno del grafo si articola in tre macro-categorie progettate per supportare le interrogazioni avanzate:
 \begin{itemize}

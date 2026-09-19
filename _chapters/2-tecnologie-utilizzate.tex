@@ -6,7 +6,7 @@ Per far fronte alle sfide di estrazione, elaborazione, archiviazione e interroga
     \item \textbf{Python}: È stato il linguaggio cardine per la costruzione dell'intera pipeline del progetto. La scelta è ricaduta su Python per diverse ragioni:
     \begin{itemize}
         \item \textbf{Ecosistema dedicato ai modelli linguistici:} Python dispone di librerie mature e ampiamente supportate (come \texttt{sentence-transformers}) che hanno permesso di integrare agevolmente i modelli di embedding senza dover reimplementare componenti di basso livello.
-        \item \textbf{Ottima integrazione con tutte le librerie utilizzate:} Python risulta perfettamente integrato con tutti gli strumenti e le librerie adottate nell'intero stack tecnologico (dai tool di estrazione testuale, ai modelli LLM, fino alla Graph Data Science Library e al database Neo4j tramite API native), permettendo di orchestrare l'intera pipeline in modo fluido e senza la necessità di complessi adattatori o wrapper di terze parti.
+        \item \textbf{Ottima integrazione con tutte le librerie utilizzate:} Python risulta perfettamente integrato con tutti gli strumenti e le librerie adottate nell'intero stack tecnologico (dai tool di estrazione testuale ai modelli LLM e al database Neo4j tramite API native), permettendo di orchestrare l'intera pipeline in modo fluido e senza la necessità di complessi adattatori o wrapper di terze parti.
     \end{itemize}
 \end{itemize}
 
@@ -39,9 +39,6 @@ La scelta è ricaduta su Neo4j, il database a grafo più diffuso e maturo sul me
     \end{itemize}
 
 Per interagire con il database e gestire le operazioni di interrogazione e popolamento del grafo, è stato adottato \textbf{Cypher} \cite{cypher}, il linguaggio dichiarativo nativo dell'ecosistema Neo4j.
-
-Infine, per valorizzare le informazioni topologiche della rete, si è fatto ricorso alla \textbf{Graph Data Science Library}, una libreria nativa dedicata all'implementazione di algoritmi analitici sui grafi. Al suo interno è stato selezionato \textbf{Node2Vec}, un potente algoritmo di \textit{graph embedding}.
-A differenza degli embedding semantici utilizzati per la ricerca testuale (discussi nella Sezione \ref{sec:llm_embedding_models}), questo algoritmo permette di codificare in uno spazio vettoriale di 128 dimensioni le complesse relazioni gerarchiche e di vicinato che intercorrono tra i vari elementi del corpus normativo.
 
 \section{LLM e Modelli di Embedding Semantici}\label{sec:llm_embedding_models}
 Il cuore intelligente del sistema risiede nei modelli di linguaggio e di embedding, responsabili rispettivamente della strutturazione semantica dei documenti e della loro vettorializzazione per la ricerca.

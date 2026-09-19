@@ -59,7 +59,7 @@ Il comma costituisce l'unità atomica scelta per il recupero dell'informazione. 
 
 Dopo il popolamento del grafo, il contenuto dei commi viene convertito in rappresentazioni vettoriali. Gli embedding semantici codificano il significato linguistico del testo e rendono confrontabili le unità normative con le query degli utenti. Per evitare che un comma venga rappresentato come frammento completamente isolato, il processo può includere informazioni provenienti dalla sua gerarchia oppure dal resto dell'articolo, secondo la strategia supportata dal modello selezionato.
 
-Gli embedding vengono memorizzati come proprietà dei nodi di tipo \texttt{Paragraph}. In questo modo, testo, provenienza, posizione nel documento e rappresentazione vettoriale rimangono associati alla stessa entità. A essi si affiancano gli embedding strutturali generati a partire dalla topologia del grafo, destinati a rappresentare la vicinanza tra nodi sulla base delle relazioni anziché del solo contenuto testuale.
+Gli embedding vengono memorizzati come proprietà dei nodi di tipo \texttt{Paragraph}. In questo modo, testo, provenienza, posizione nel documento e rappresentazione vettoriale rimangono associati alla stessa entità.
 
 La memorizzazione nel medesimo database consente di passare dal risultato di una ricerca semantica alla navigazione delle relazioni con un'unica infrastruttura di persistenza.
 
@@ -68,7 +68,7 @@ La memorizzazione nel medesimo database consente di passare dal risultato di una
 Nel corso della pipeline, lo stesso documento attraversa rappresentazioni differenti, ciascuna delle quali risponde a una responsabilità specifica:
 
 \begin{center}
-\texttt{PDF $\rightarrow$ Markdown $\rightarrow$ JSON $\rightarrow$ grafo $\rightarrow$ embedding}
+\texttt{PDF $\rightarrow$ Markdown $\rightarrow$ JSON $\rightarrow$ grafo $\rightarrow$ indicizzazione semantica}
 \end{center}
 
 Il PDF costituisce la fonte originale; il Markdown rappresenta il testo normalizzato; il JSON descrive in forma esplicita le entità e le relazioni riconosciute; il grafo rende tali informazioni persistenti e navigabili; gli embedding aggiungono infine una rappresentazione numerica adatta al recupero semantico.
@@ -97,7 +97,7 @@ Questa strategia utilizza esclusivamente la vicinanza nello spazio semantico dur
 
 \subsection{Ricerca arricchita dalla struttura}
 
-La seconda configurazione parte ugualmente dalla query e dal recupero di candidati semanticamente pertinenti, ma integra le informazioni contenute nella topologia. A partire dai nodi individuati è possibile considerare il contesto gerarchico, i commi adiacenti e le disposizioni collegate da relazioni legali. Gli embedding strutturali forniscono inoltre una rappresentazione numerica della posizione dei commi nella rete.
+La seconda configurazione parte ugualmente dalla query e dal recupero di candidati semanticamente pertinenti, ma integra le informazioni contenute nella topologia. A partire dai nodi individuati è possibile considerare il contesto gerarchico, i commi adiacenti e le disposizioni collegate da relazioni legali.
 
 Il grafo non sostituisce quindi la ricerca semantica, ma introduce segnali ulteriori con cui arricchire il recupero. Questa separazione consente di attribuire le eventuali differenze osservate all'impiego della struttura, mantenendo invariati gli altri elementi del processo sperimentale. La definizione puntuale degli algoritmi, dei parametri di combinazione e delle metriche di valutazione viene presentata nei capitoli dedicati al benchmark.
 

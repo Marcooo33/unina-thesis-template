@@ -263,7 +263,7 @@ Il terzo costo è il tempo. La strategia ibrida aggiunge un percorso di andata e
         S2 & Top-14 & 18 ms & 20 ms & 31 ms \\
         \hline
     \end{tabular}
-    \caption{Latenza di \texttt{strategy.search()}, mediata sui tre modelli. Esclude la codifica della domanda e il gate.}
+    \caption{Latenza di \texttt{strategy.search()}, mediata sui tre modelli. Esclude la codifica della domanda.}
     \label{tab:latenza}
 \end{table}
 
@@ -481,11 +481,6 @@ La prima riga meritava di essere verificata perché corrispondeva a un difetto r
 L'indagine sui quasi-duplicati ha prodotto un ritrovamento indipendente che vale la pena registrare: fra i soli 1.053 commi osservati nei log esistono \textbf{37 gruppi di testo identico appartenenti ad atti diversi} --- un codice di comportamento in due annualità, tre copie dello stesso regolamento, un contratto disciplinare in due versioni. È un problema di igiene del corpus che riguarda ugualmente tutti e tre i modelli, e che ogni sistema di recupero su normativa pubblica è destinato a incontrare.
 
 \subsection{Un esperimento inconcludente}
-
-Va infine riportato il tentativo più vicino a un'ablazione del solo meccanismo. Lo stesso encoder è stato applicato con e senza contestualizzazione sul medesimo pool di 168 commi ricostruiti e su 29 domande: il primo risultato è corretto nel 75,9\% dei casi in \textit{entrambe} le condizioni, con 4 vinte, 5 perse e 20 pari.
-
-Il pool ridotto non riproduce la pressione discriminativa di un corpus da 6.396 commi e il bilancio appaiato è quasi simmetrico. L'esperimento non mostra quindi un effetto distinguibile nelle condizioni adottate e non viene contato come conferma né come confutazione del late chunking. Per formulare una conclusione causale occorrerebbe ripetere la stessa ablazione sull'intero corpus.
-
 \subsection{Sintesi dell'antitesi}
 
 I risultati non confutano l'utilità del late chunking come tecnica di contestualizzazione intra-articolo. Mostrano invece che, nel benchmark considerato, tale contestualizzazione non assorbe il contributo delle relazioni esplicite: mantenendo fisso l'encoder contestuale, S2 guadagna 11,9 punti di Complete HIT@10 e 8,2 punti di copertura dei commi di supporto rispetto a S1.
@@ -500,11 +495,7 @@ Il capitolo si chiude dichiarando ciò che le sue misure non stabiliscono.
 
 \textbf{Il benchmark è costruito, non campionato.} Cinque slice su sette sono state scritte attorno a un meccanismo del sistema, e la media complessiva ne eredita i pesi. I risultati mostrano quindi che cosa accade nelle condizioni rappresentate dalle slice, ma non stimano la frequenza di tali condizioni nel traffico reale.
 
-\textbf{Il confronto fra gli encoder non è un'ablazione del solo late chunking.} Le configurazioni PPLX condividono famiglia, dimensione e strategia di pooling, ma differiscono per addestramento e costruzione dell'input. Le differenze di recupero osservate fra loro descrivono le configurazioni complete e non possono essere attribuite causalmente alla sola contestualizzazione. L'esperimento controllato sul sottoinsieme di 168 commi è invece troppo piccolo per produrre una conclusione sul recupero.
-
 \textbf{Il corpus è uno solo.} Le proporzioni fra i tipi di relazione di questo grafo --- 1.030 archi \texttt{CITES} contro 41 \texttt{DEROGATES} e 3 \texttt{INTERPRETS}, con \texttt{REPEALS} e \texttt{REPLACES} assenti --- determinano quanto il ramo giuridico possa contribuire. Un corpus con una fitta trama di abrogazioni e sostituzioni si comporterebbe diversamente, e presumibilmente in favore della struttura, ma questo non è stato misurato.
-
-\textbf{Le domande poste per numero di articolo sono fuori perimetro.} Una slice che chiedeva disposizioni citandone il numero è stata misurata e dichiarata fuori scopo: entrambe le strategie vi ottengono il 14,8\% di risposte complete, con zero vittorie e zero sconfitte fra loro. Il sistema non esegue alcuna analisi sintattica della domanda e non estrae numeri di articolo, e una slice che richieda quella capacità misura qualcosa che il sistema non dichiara di fare. Il risultato è riportato affinché l'esclusione sia un confine dichiarato e non un silenzio.
 
 \textbf{La qualità della risposta generata non è misurata.} Tutto ciò che questo capitolo misura è il recupero: quali commi arrivano, in quale ordine. Che un sistema generativo a valle produca con quei commi una risposta corretta è una proprietà distinta, che richiederebbe un impianto di valutazione diverso.
 

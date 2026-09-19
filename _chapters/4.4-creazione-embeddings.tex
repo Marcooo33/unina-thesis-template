@@ -53,18 +53,3 @@ Un esempio pratico:
 
 Se il modello processa il Comma 2 in isolamento, la parola "essi" è ambigua e "La disposizione" è un concetto vuoto.
 Sfruttando il late chunking, la rete neurale collega istantaneamente "essi" del Comma 2 ai "soggetti" del Comma 1, e "La disposizione" all'intero concetto di sanzione appena letto.
-
-\subsection{Il Graph Embedding come appoggio agli Embedding Semantici}
-Oltre all'analisi puramente testuale, il sistema arricchisce la rappresentazione della conoscenza integrando l'informazione strutturale del documento. A tale scopo viene impiegato l'algoritmo \textbf{Node2Vec}, eseguito tramite la libreria Graph Data Science (GDS). Questo approccio genera un \textit{graph embedding} per ogni comma, codificando in vettori a 128 dimensioni la topologia della rete, ovvero la gerarchia del documento e le relazioni logico-giuridiche che legano i nodi. In questo modo, l'algoritmo mappa in regioni vicine dello spazio vettoriale quei commi che, a prescindere dal testo, condividono una medesima posizione strutturale o forti vincoli normativi.
-Per adattare Node2Vec al dominio legale, la strategia di esplorazione del grafo tramite \textit{random walk} è stata calibrata attraverso i parametri \textbf{p} e \textbf{q}:
-\begin{itemize}
-    \item \textbf{Return parameter ($p = 1$)}: Mantiene un comportamento esplorativo neutrale, senza forzare né penalizzare il ritorno immediato al nodo precedente.
-    \item \textbf{In-out parameter ($q = 0.5$)}: Essendo inferiore a $1$, forza un'esplorazione profonda (simile a una \textit{Depth-First Search}). Questa scelta è essenziale nel dominio legale, in quanto permette all'algoritmo di attraversare in profondità l'intera struttura verticale del documento (Legge $\rightarrow$ Titolo $\rightarrow$ Capo $\rightarrow$ Articolo $\rightarrow$ Comma) e di seguire agevolmente lunghe catene di rimandi normativi.
-\end{itemize}
-Inoltre, per guidare attivamente l'apprendimento verso i percorsi più significativi, è stato implementato un sistema di pesi differenziati per le diverse tipologie di relazione. Questi valori alterano le probabilità di transizione durante le passeggiate aleatorie, forzando il modello a privilegiare specifiche tipologie di relazioni:
-\begin{itemize}
-    \item \textbf{Pesi Elevati (2.0)}: Assegnati alle relazioni strutturali (\texttt{HAS\_TITLE}, \texttt{HAS\_CHAPTER}, ecc.) per preservare la forte dipendenza gerarchica di un comma dal suo contenitore genitore. Questo stesso valore massimo è stato riservato ad abrogazioni e sostituzioni (\texttt{REPEALS}, \texttt{REPLACES}), in quanto rappresentano legami di importanza cruciale: tali relazioni, infatti, hanno un impatto giuridico estremamente forte, andando ad alterare in modo diretto la validità e l'efficacia delle disposizioni normative connesse.
-    \item \textbf{Pesi Intermedi (1.5)}: Assegnati a interpretazioni e deroghe (\texttt{INTERPRETS}, \texttt{DEROGATES}), relazioni che modificano l'applicazione di una norma creando vincoli forti, ma senza costituire una sostituzione assoluta.
-    \item \textbf{Pesi Base (1.0)}: Assegnati alla contiguità testuale (\texttt{NEXT\_PARAGRAPH}) e alle citazioni generiche (\texttt{CITES}), collegamenti sicuramente pertinenti ma gerarchicamente e semanticamente meno vincolanti.
-\end{itemize}
-Al termine dell'esecuzione, questi embedding strutturali vengono salvati come proprietà aggiuntiva (\texttt{embedding\_node2vec\_128}) sui nodi dei commi \texttt{(:Paragraph)}. Questo affianca l'embedding semantico tradizionale, dotando il sistema di un duplice livello di ricerca: uno basato sul contenuto linguistico, l'altro sulla topologia e sui legami normativi del documento.

@@ -137,29 +137,6 @@ Una conseguenza visibile nell'output della CLI: i punteggi RRF stampati \textbf{
 
 L'efficacia di questo componente è netta e viene riportata per intero nel Capitolo~\ref{chap:sixth}. Va però anticipato che si tratta di uno scambio dichiarato e non di un guadagno gratuito: le righe che la fusione promuoverebbe nei primi due ranghi sono commi attesi nel \textbf{49,1\%} dei casi, contro il \textbf{31,2\%} delle righe che la testa mantiene. La testa cede quindi un po' di copertura in cima per riportare al primo posto il comma che effettivamente risponde.
 
-\subsection{Un componente rimosso: il pavimento vettoriale}
-
-Una versione precedente della strategia affiancava alla testa un secondo presidio, il \textit{pavimento vettoriale}: una garanzia che i primi $\mathrm{round}(k \times \text{ratio})$ risultati vettoriali comparissero nel risultato finale, indipendentemente dalla fusione. I due presidi erano concettualmente distinti --- la testa fissa un \textit{ordine}, il pavimento una \textit{appartenenza} --- e sono stati misurati separatamente, risultando effettivamente ortogonali.
-
-Il pavimento è stato rimosso (\texttt{floor\_ratio = 0.0}) perché il suo guadagno non sopravvive fuori dallo split su cui era stato scelto. La Tabella~\ref{tab:pavimento} riporta la misura che ha determinato la decisione.
-
-\begin{table}[H]
-    \centering
-    \renewcommand{\arraystretch}{1.2}
-    \begin{tabular}{|l|c|c|}
-        \hline
-        \textbf{Insieme di domande} & \textbf{Complete HIT@5} & \textbf{bilancio appaiato} \\
-        \hline
-        banco intero & 73,4\% contro 72,4\% & 4 vinte / 2 perse \\
-        split \texttt{dev} (di selezione) & 71,8\% contro 69,2\% & 2 vinte / 0 perse \\
-        split \texttt{test} (tenuto da parte) & 74,6\% contro 74,6\% & 2 vinte / 2 perse \\
-        \hline
-    \end{tabular}
-    \caption{Effetto del pavimento vettoriale, con e senza, per insieme di valutazione.}
-    \label{tab:pavimento}
-\end{table}
-
-Un guadagno che esiste soltanto sullo split su cui il parametro è stato scelto non è un guadagno: è la definizione stessa di adattamento al banco di prova. Ciò che si perde non è però nullo, e vale la pena registrarlo: il pavimento copriva un modo di fallimento reale --- casi in cui la fusione espelle dal Top-5 un comma primario che il coseno aveva collocato al secondo posto --- semplicemente troppo raro perché questo banco lo distingua dal rumore.
 
 \subsection{Perché il peso giuridico resta 3}
 \label{sec:peso_legale}
@@ -180,29 +157,4 @@ Accanto al ramo giuridico ha operato per un certo periodo un secondo ramo, che p
 
 Il costo della rimozione è concentrato dove ci si attende, sulle domande la cui risposta è distribuita su più commi dello stesso articolo, ed è ripagato da guadagni su quattro slice diverse. L'intero contributo del grafo, in questo sistema, è il ramo giuridico. Un terzo ramo che raggiungeva i commi fratelli attraverso \texttt{HAS\_PARAGRAPH} era stato rimosso ancora prima, con un bilancio che si commenta da sé: 243 righe emesse per 7 commi attesi.
 
-\section{Il gate di answerability}
-
-L'ultimo stadio della pipeline di produzione non ordina risultati: decide se restituirli. Un sistema di recupero puramente vettoriale restituisce sempre qualcosa, perché il comma più vicino al vettore della domanda esiste sempre, anche quando il corpus non contiene affatto la risposta. Per un sistema destinato ad alimentare una generazione di risposte, questo è il modo di fallimento peggiore, perché produce un'allucinazione fondata su una fonte citabile.
-
-Il presidio adottato è un \textit{cross-encoder} che valuta i primi \textbf{5} commi della graduatoria \textbf{vettoriale} con un'unica sigmoide; se nessuno raggiunge la soglia di 0,205 la domanda viene rifiutata e la ricerca restituisce una lista vuota, altrimenti il Top-K fuso viene restituito senza modifiche. Il gate non riordina mai nulla.
-
-Due dettagli di progetto meritano attenzione. Primo, il gate è interrogato sulla graduatoria \textit{vettoriale} e non su quella fusa: le righe promosse dal grafo sono per costruzione commi collegati, quindi rispondono peggio alla domanda «esiste qui la risposta?» di quanto non facciano i migliori risultati per similarità diretta. Secondo, questa è l'\textbf{unica} decisione di risponditività della pipeline. Una versione precedente affiancava al gate due soglie sul coseno --- sotto 0,50 rifiuto immediato, sopra 0,80 gate saltato --- ed entrambe sono state rimosse dopo misura:
-
-\begin{itemize}
-    \item la \textbf{soglia bassa non ha mai agito}: il coseno più basso osservato al primo posto su tutte le valutazioni, negative incluse, è 0,692, cioè al di sopra del taglio;
-    \item la \textbf{soglia alta non separava}: con un modello le domande senza risposta raggiungono 0,795 contro un taglio di 0,80, mentre domande legittime scendono a 0,762. Il coseno, misurato come segnale, non è debole in sé, ma 0,80 non era mai stato calibrato e cadeva dentro la zona di sovrapposizione; quale lato della soglia toccasse a una domanda dipendeva dal modello di embedding.
-\end{itemize}
-
-Nel benchmark del Capitolo~\ref{chap:sixth} il gate è \textbf{disattivato}. La ragione è metodologica: il benchmark esiste per misurare se il grafo migliori o peggiori il recupero, e un componente che restituisce liste vuote nasconderebbe quella misura dietro la propria calibrazione. Il verdetto del gate viene registrato a parte.
-
-\section{Provenienza e riproducibilità}
-
-Ogni riga restituita da S2 porta con sé la propria provenienza: l'etichetta \texttt{VECTOR} o \texttt{LEGAL}, il seme da cui è stata raggiunta, la distanza nel grafo, la relazione giuridica percorsa e la sua direzione. Questo non serve soltanto alla diagnostica: un sistema che opera su testi normativi deve poter dichiarare \textit{perché} ha proposto una disposizione, e «perché l'articolo 13 la richiama» è una giustificazione di natura diversa, e verificabile, rispetto a «perché il suo testo assomiglia alla domanda».
-
-I pareggi vengono risolti sugli identificativi stabili dei commi, quindi due esecuzioni della stessa configurazione sullo stesso grafo producono lo stesso ordinamento.
-
-\section{Sintesi del capitolo}
-
-Le due strategie confrontate nel capitolo successivo condividono corpus, unità di indicizzazione, modello di embedding e cutoff, e differiscono soltanto per l'intervento delle relazioni giuridiche nell'ordinamento. La strategia ibrida recupera un bacino vettoriale di 200 commi, espande i primi 5 lungo cinque tipi di relazione giuridica in entrambe le direzioni, fonde le due graduatorie con una RRF pesata 4/3 e restituisce alla pura similarità coseno i primi due ranghi del risultato.
-
-Il rapporto fra i pesi colloca deliberatamente la strategia \textit{sotto} la soglia oltre la quale il grafo potrebbe aggiungere candidati propri: il meccanismo riordina il bacino vettoriale senza estenderlo. Tre componenti sono stati rimossi nel corso dello sviluppo --- il ramo di adiacenza, il ramo dei commi fratelli e il pavimento vettoriale --- ciascuno perché la misura non ne sosteneva il costo, e il Capitolo~\ref{chap:sixth} riporta gli esperimenti corrispondenti insieme al confronto principale.
+Nel complesso, le scelte descritte in questo capitolo definiscono le due strategie di recupero e isolano il contributo delle relazioni giuridiche al riordinamento dei risultati. Il Capitolo~\ref{chap:sixth} presenta i risultati dell'esperimento e mette a confronto quantitativamente le prestazioni delle due strategie.
