@@ -117,7 +117,7 @@ Questa separazione è lo strumento diagnostico centrale del capitolo, perché co
 \section{Le metriche}
 \label{sec:metriche}
 
-Tutte le metriche sono calcolate sul Top-K restituito, ai cutoff 5 e 10. Ciascun cutoff è una selezione a sé: sia i bacini del ramo sia la testa riservata scalano con $k$, quindi un Top-5 non è necessariamente il prefisso di un Top-10
+Tutte le metriche sono calcolate sul Top-K restituito, ai cutoff 5 e 10. Ciascun cutoff è una selezione a sé: sia i bacini del ramo sia la testa riservata scalano con $k$, quindi un Top-5 non è necessariamente il prefisso di un Top-10.
 
 \begin{itemize}
     \item \textbf{Complete HIT@K}: la domanda conta come risolta soltanto se \textit{tutti} i commi attesi si trovano entro il cutoff. È la metrica più severa e la più aderente al caso d'uso, perché una risposta normativa parziale può essere peggiore di nessuna risposta: un utente che riceve la regola generale senza la deroga che la disattiva riceve un'informazione scorretta.
@@ -137,6 +137,7 @@ I modelli di embedding confrontati sono i tre già introdotti nella Sezione~\ref
 \textbf{Primo ruolo, nelle Sezioni~\ref{sec:risultato_principale} e~\ref{sec:costo_grafo}: tre verifiche di robustezza.} La domanda posta lì è se la struttura migliori il recupero, ed è ripetuta con ciascun encoder per verificare che il segno del risultato non dipenda da una sola scelta del modello.
 
 \textbf{Secondo ruolo, nella Sezione~\ref{sec:antitesi}: verifica con encoder contestuale fissato.} Il test mantiene fisso \texttt{pplx-embed-context-v1-0.6b} e misura se il passaggio da S1 a S2 produca ancora un guadagno. Il confronto con \texttt{pplx-embed-v1-0.6b} resta soltanto descrittivo: i due modelli differiscono per addestramento e modalità di costruzione dell'input, quindi non costituiscono un'ablazione a variabile singola del \textit{late chunking}.
+
 
 \section{Risultati sul benchmark diagnostico}
 \label{sec:risultato_principale}
