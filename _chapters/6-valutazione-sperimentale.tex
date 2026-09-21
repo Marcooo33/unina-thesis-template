@@ -4,92 +4,139 @@
 
 Questo capitolo misura le due strategie di recupero definite nel Capitolo~\ref{chap:fifth} e risponde alla domanda che motiva l'intero lavoro: \textit{la struttura esplicita di un grafo normativo migliora il recupero rispetto alla sola similarità semantica, e a quale prezzo?}
 
-La risposta non è un numero solo, e il capitolo è organizzato per renderne visibili le condizioni. La Sezione~\ref{sec:banco} descrive il banco di domande e dichiara che cosa la sua media possa e non possa stimare; la Sezione~\ref{sec:metriche} definisce le metriche. La Sezione~\ref{sec:risultato_principale} riporta il confronto principale fra le due strategie e la Sezione~\ref{sec:costo_grafo} ne quantifica il costo.
-
-La Sezione~\ref{sec:antitesi} affronta quindi l'obiezione più seria che il lavoro debba sostenere: se la contestualizzazione interna all'encoder renda ridondante la struttura esplicita del grafo. Il confronto verifica se il contributo delle relazioni persista anche quando i commi sono rappresentati tenendo conto del contesto dell'articolo.
+La Sezione~\ref{sec:antitesi} verifica infine se il contributo del grafo persista quando la ricerca vettoriale usa rappresentazioni già contestualizzate a livello di articolo.
 
 \section{Il banco di domande}
 \label{sec:banco}
 
-Non esiste, per il corpus normativo impiegato in questo lavoro, un insieme di domande e risposte di riferimento. È stato quindi necessario costruirne uno, e la sua composizione è una scelta metodologica che condiziona ogni numero riportato nel seguito. Dichiararla per intero è parte del risultato.
+Non esiste, per il corpus normativo impiegato in questo lavoro, un insieme di domande e risposte di riferimento. È stato quindi necessario costruirne uno, e la sua composizione è una scelta metodologica che condiziona ogni numero riportato nel seguito.
 
 \subsection{Struttura del banco}
 
-Il benchmark diagnostico è costituito da \textbf{70 domande}, organizzate in \textbf{sette slice da dieci}. Ogni domanda dichiara l'insieme dei commi che costituiscono la risposta completa, identificati dal loro \texttt{custom\_id} nel grafo. Le etichette sono usate esclusivamente per la valutazione e non raggiungono mai il modulo di recupero. Il banco è progettato per confrontare i meccanismi in condizioni note e non per riprodurre la distribuzione delle domande di un ambiente di produzione.
+Il benchmark diagnostico è costituito da \textbf{70 domande}, organizzate in \textbf{sette categorie da dieci}. Ogni domanda dichiara l'insieme dei commi che costituiscono la risposta completa, identificati dal loro \texttt{custom\_id} nel grafo. Le etichette sono usate esclusivamente per la valutazione e non raggiungono mai il modulo di recupero. La Tabella~\ref{tab:composizione_banco} riassume la composizione del banco e il meccanismo che ciascuna categoria mette alla prova.
 
 \begin{table}[H]
     \centering
     \renewcommand{\arraystretch}{1.2}
-    \begin{tabular}{|l|c|c|p{5.2cm}|}
+    \begin{tabular}{|l|c|p{5.2cm}|}
         \hline
-        \textbf{Slice} & \textbf{n} & \textbf{all.} & \textbf{Che cosa mette alla prova} \\
+        \textbf{Categoria} & \textbf{n} & \textbf{Che cosa mette alla prova} \\
+        \hline\hline
+        \texttt{SEMANTIC\_DIRECT} & 10 & la domanda è vicina al testo \\
         \hline
-        \texttt{RELATIONAL\_CITES\_LOW\_SIMILARITY} & 10 & sì & rinvii i cui estremi hanno bassa similarità diagnostica \\
-        \texttt{RELATIONAL\_CITES\_HIGH\_SIMILARITY} & 10 & sì & rinvii i cui estremi hanno alta similarità diagnostica, come condizione di non-effetto atteso \\
-        \texttt{RELATIONAL\_DEROGATES} & 10 & sì & una regola generale e la disposizione che vi deroga \\
-        \texttt{MULTI\_ARTICLE} & 10 & sì & commi attesi distribuiti su più articoli \\
-        \texttt{MULTI\_PARAGRAPH} & 10 & sì & più commi dello stesso articolo \\
-        \texttt{SEMANTIC\_INDIRECT} & 10 & no & la domanda è posta obliquamente \\
-        \texttt{SEMANTIC\_DIRECT} & 10 & no & la domanda è vicina al testo \\
+        \texttt{SEMANTIC\_INDIRECT} & 10 & la domanda esprime indirettamente il contenuto del testo \\
+        \hline
+        \texttt{RELATIONAL\_CITES\_LOW\_SIMILARITY} & 10 & rinvii i cui estremi hanno testi poco simili \\
+        \hline
+        \texttt{RELATIONAL\_CITES\_HIGH\_SIMILARITY} & 10 & rinvii i cui estremi hanno testi molto simili, come condizione di non-effetto atteso \\
+        \hline
+        \texttt{RELATIONAL\_DEROGATES} & 10 & una regola generale e la disposizione che vi deroga \\
+        \hline
+        \texttt{MULTI\_ARTICLE} & 10 & commi attesi distribuiti su più articoli \\
+        \hline
+        \texttt{MULTI\_PARAGRAPH} & 10  & più commi dello stesso articolo \\
         \hline
     \end{tabular}
-    \caption{Composizione del benchmark diagnostico. La colonna \textit{all.} marca le slice \textit{allineate}, costruite attorno a un meccanismo che il sistema implementa.}
+    \caption{Composizione del benchmark diagnostico.}
     \label{tab:composizione_banco}
 \end{table}
 
-Sessantasette delle settanta domande sono marcate \texttt{quantitative} ed entrano nelle metriche di completezza aggregate; le tre restanti, tutte nella slice \texttt{RELATIONAL\_DEROGATES}, sono marcate \texttt{qualitative} e vengono discusse ma non mediate in tali risultati. La distinzione dipende dall'affidabilità del giudizio di completezza della risposta ed è definita indipendentemente dalle prestazioni delle strategie. Le analisi che richiedono soltanto una posizione osservabile nella graduatoria, e non un giudizio quantitativo sulla completezza, possono invece utilizzare tutte e settanta le domande; ogni tabella dichiara esplicitamente la propria numerosità.
 
-Le slice sono uguali per costruzione, attraverso una procedura di ribilanciamento. Questo non rende la media una stima di produzione --- le \textit{slice} restano scelte --- ma rimuove un grado di libertà: i pesi della miscela non sono più una decisione dell'autore.
+\subsubsection{Le due categorie sulla relazione CITES}
+
+Le due categorie dedicate ai rinvii condividono la stessa struttura: il comma sorgente contiene un rinvio esplicito a una disposizione collocata in un altro articolo dello stesso atto. I casi sono suddivisi in due gruppi in base alla similarità semantica tra il comma sorgente e quello richiamato.
+
+La categoria \texttt{RELATIONAL\_CITES\_LOW\_SIMILARITY} comprende i casi in cui i due commi risultano semanticamente distanti. In questa condizione, una ricerca basata esclusivamente sulla similarità semantica può avere difficoltà a recuperarli congiuntamente, poiché il rinvio collega disposizioni che svolgono funzioni differenti o trattano aspetti diversi della stessa disciplina. La presenza di un arco esplicito nel grafo consente invece, una volta individuato il comma sorgente, di raggiungere direttamente la disposizione richiamata, anche quando la somiglianza tra i rispettivi contenuti testuali è ridotta.
+
+Un esempio è rappresentato dal rinvio relativo all'anticipazione delle spese di missione, contenuto nel \emph{Regolamento di contabilità della Provincia di Parma}. L'articolo 74, comma 2, dispone:
+
+\begin{quote}
+``L'anticipazione viene corrisposta all'avente diritto secondo le modalità previste al comma 3 dell'art. 73, previa presentazione della copia del relativo atto autorizzativo allo svolgimento della trasferta o missione.''
+\end{quote}
+
+La disposizione richiamata, contenuta nell'articolo 73, comma 3, stabilisce invece:
+
+\begin{quote}
+``La spesa viene disposta su specifica richiesta firmata dal Dirigente competente tramite l'emissione di appositi buoni economali in cui deve comparire obbligatoriamente l'oggetto della spesa, il suo ammontare, il soggetto percepente la somma, l'impegno di spesa al quale è riferita la spesa.''
+\end{quote}
+
+
+Il primo comma riguarda principalmente l'anticipazione connessa a una missione, mentre il secondo definisce una procedura amministrativo-contabile più generale. La relazione deriva quindi soprattutto dall'importazione, mediante rinvio, di una procedura definita altrove, non da una forte somiglianza tra i due testi.
+
+La categoria \texttt{RELATIONAL\_CITES\_HIGH\_SIMILARITY} comprende invece casi nei quali il rinvio collega disposizioni semanticamente e lessicalmente più vicine. In questa condizione ci si attende un contributo minore dalla struttura a grafo, poiché la disposizione richiamata presenta già caratteristiche che ne favoriscono il recupero attraverso la ricerca vettoriale.
+
+Un esempio riguarda l'utilizzo del mezzo proprio da parte degli amministratori ed è tratto dal \emph{Regolamento per la disciplina dei rimborsi delle spese di viaggio e delle missioni istituzionali degli amministratori della Provincia di Parma}. L'articolo 7, comma 2, afferma:
+
+\begin{quote}
+``Nel caso di utilizzo del proprio mezzo, la Provincia di Parma non concorrerà alla copertura assicurativa di detto veicolo e rimarrà comunque esente da ogni responsabilità civile, penale e per infortuni, in relazione ai danni che l'uso del mezzo stesso potrà arrecare a cose o persone, in particolare a terzi, all'Amministratore che utilizza il proprio mezzo, ai trasportati o al mezzo medesimo, come già disciplinato all'art. 5, comma 4, del presente Regolamento.''
+\end{quote}
+
+La disposizione richiamata, contenuta nell'articolo 5, comma 4, stabilisce:
+
+\begin{quote}
+``Gli Amministratori, autorizzati all'uso del mezzo proprio, devono sollevare l'Amministrazione da qualsiasi responsabilità dichiarando, nell'apposito predisposto modello: [...] che il veicolo utilizzato è in regola con le norme previste per l'assicurazione dei veicoli; [...] di essere in possesso di regolare e valida patente di guida e/o abilitazione alla guida dei veicoli ai sensi del vigente Codice della strada.''
+\end{quote}
+
+I due commi condividono il soggetto, la situazione disciplinata e concetti centrali quali l'utilizzo del mezzo proprio, la regolarità del veicolo e l'esclusione della responsabilità dell'Amministrazione. Il rinvio collega pertanto disposizioni caratterizzate da un'elevata vicinanza sia tematica sia lessicale.
+
+
+\subsubsection{Il trattamento delle altre relazioni giuridiche}
+
+La stessa suddivisione non è stata applicata a \texttt{DEROGATES}. Nei casi presenti nel corpus, questa relazione collega prevalentemente disposizioni che disciplinano lo stesso istituto secondo una struttura regola--eccezione. La disposizione derogante e quella derogata risultano quindi generalmente vicine sul piano tematico e spesso anche su quello lessicale, pur svolgendo funzioni normative differenti.
+Un esempio riguarda le auto di servizio disciplinate dal \emph{Regolamento per la gestione del parco veicolare della Provincia di Parma}. La disciplina generale, contenuta nell'articolo 6, commi 7 e 8, prevede:
+
+\begin{quote}
+``Le auto di servizio non possono essere utilizzate per il trasporto dall'abitazione all'ufficio o al luogo di lavoro, fatto salvo il personale che svolge servizio di reperibilità.''
+
+``Le stesse dovranno di norma essere stazionate nel luogo di assegnazione corrispondente alla sede dell'Ufficio o del Centro Operativo cui appartiene il dipendente o di quello più vicino alla propria residenza.''
+\end{quote}
+
+La disposizione derogante, contenuta nell'articolo 7, comma 1, stabilisce:
+
+\begin{quote}
+``Per i dipendenti in servizio di reperibilità è consentito l'utilizzo del mezzo per motivi di servizio in deroga alle disposizioni che prevedono il ricovero presso le sedi della Provincia.''
+\end{quote}
+
+Le disposizioni condividono i concetti centrali: le auto di servizio, il personale in reperibilità, l'utilizzo del mezzo e il ricovero presso le sedi della Provincia. La loro affinità semantica non implica tuttavia equivalenza: i commi dell'articolo 6 definiscono la disciplina generale, mentre il comma dell'articolo 7 ne limita l'applicazione introducendo un'eccezione.
+
+Questo esempio evidenzia una differenza rispetto a \texttt{CITES}. Una citazione può collegare sia disposizioni fortemente affini sia disposizioni semanticamente distanti. Nei casi \texttt{DEROGATES} osservati nel corpus, invece, la struttura regola--eccezione tende a mantenere una forte condivisione dell'oggetto normativo. Una suddivisione in condizioni di alta e bassa similarità avrebbe pertanto un interesse sperimentale più limitato e sarebbe ulteriormente indebolita dal numero ridotto di archi \texttt{DEROGATES} disponibili.
+
+Infine, non sono state definite slice analoghe per \texttt{INTERPRETS}, \texttt{REPEALS} e \texttt{REPLACES} poiché, nel grafo utilizzato per la sperimentazione, sono presenti soltanto tre archi \texttt{INTERPRETS}, mentre non risultano archi \texttt{REPEALS} o \texttt{REPLACES}. Tali quantità non consentono di costruire campioni sufficientemente ampi, né di suddividerli ulteriormente in condizioni di alta e bassa similarità. L'introduzione di slice dedicate non avrebbe pertanto prodotto condizioni sperimentali sufficientemente solide per il benchmark.
 
 \subsection{Etichette primarie e di supporto}
 
 Ogni domanda distingue due categorie di commi attesi:
 
 \begin{itemize}
-    \item i commi \textbf{primari} (\texttt{primary\_paragraph\_ids}), cioè quelli che rispondono direttamente alla domanda e che una ricerca semantica può plausibilmente individuare per vicinanza testuale;
-    \item i commi \textbf{di supporto} (\texttt{supporting\_paragraph\_ids}), cioè le disposizioni necessarie a completare la risposta e la cui pertinenza deriva da un collegamento normativo o strutturale con i commi primari.
+    \item i commi \textbf{primari}, cioè quelli che rispondono direttamente alla domanda e che una ricerca semantica può plausibilmente individuare per vicinanza testuale;
+    \item i commi \textbf{di supporto}, cioè le disposizioni necessarie a completare la risposta e la cui pertinenza deriva da un collegamento normativo o strutturale con i commi primari.
 \end{itemize}
 
 Questa separazione è lo strumento diagnostico centrale del capitolo, perché consente di osservare separatamente il recupero della risposta diretta e quello del contesto che la completa. La ricerca vettoriale può recuperare entrambe le categorie; l'ipotesi sottoposta a verifica è che l'impiego esplicito delle relazioni produca un guadagno soprattutto sulla copertura dei commi \textit{di supporto}.
 
-Un'ulteriore accortezza riguarda la cardinalità delle risposte. In una versione precedente del banco, ogni domanda relazionale aveva più commi attesi e ogni domanda semantica ne aveva uno solo: le due proprietà erano perfettamente confuse, e una risposta singola trovata al primo posto rende la metrica di completezza insensibile a tutto ciò che sta sotto. Il costo di eseguire il grafo dove non serve non era quindi misurabile. Cinque domande per ciascuna slice semantica hanno ora la risposta distribuita su \textbf{due articoli fra i quali non esiste alcun arco giuridico}, condizione verificata programmaticamente. Con questa correzione il costo diventa visibile, come la Sezione~\ref{sec:composizione} riporta.
-
-\subsection{Le due condizioni sui rinvii \texttt{CITES}}
-
-Le due slice dedicate ai rinvii condividono gli stessi requisiti strutturali: il comma di partenza contiene un rinvio letterale a una disposizione sostanziale collocata in un altro articolo dello stesso atto. La loro separazione dipende da una misura diagnostica, calcolata con \texttt{embeddinggemma-300m}, della similarità coseno fra il comma sorgente e quello richiamato. I casi con similarità non superiore a 0,88 formano \mbox{\texttt{RELATIONAL\_CITES\_LOW\_SIMILARITY}}; quelli sopra la soglia formano \mbox{\texttt{RELATIONAL\_CITES\_HIGH\_SIMILARITY}}. La soglia non stabilisce quali commi siano pertinenti e non entra nella valutazione: formula soltanto una previsione sul vantaggio marginale della struttura. Nella prima condizione il recupero congiunto mediante la sola semantica è ritenuto meno probabile; nella seconda, essendo i due estremi già vicini nello spazio diagnostico, ci si attende che il grafo aggiunga poco.
-
-\subsection{Limiti dichiarati del banco}
-
-\textbf{Il primo limite è la composizione.} Cinque slice su sette sono costruite attorno a un meccanismo che il sistema implementa: le loro domande sono state scelte perché un arco del grafo o la catena dei commi di un articolo raggiunge la risposta. La media complessiva è quindi una media pesata su una composizione decisa dall'autore, e non stima il comportamento su traffico reale. Per questa ragione le due metà del banco --- allineata e non allineata --- sono sempre riportate separatamente, e la media complessiva non compare mai da sola.
-
-\textbf{Il secondo limite è il soffitto.} Tre domande dichiarano più commi attesi di quanti il cutoff ne ammetta: il massimo raggiungibile è 97,2\% a Top-5 e 99,1\% a Top-10, non 100\%. Poiché il vincolo penalizza identicamente entrambe le strategie, il confronto non ne risente.
-
-\textbf{Il terzo limite è lo split.} Le domande sono divise in \texttt{dev} (28 quantitative) e \texttt{test} (39). Ogni parametro della configurazione descritta nel Capitolo~\ref{chap:fifth} è stato scelto guardando esclusivamente \texttt{dev}; \texttt{test} è tenuto da parte e riportato separatamente. Un guadagno che vive solo su \texttt{dev} è un adattamento al banco, ed è già stato il criterio che ha ritirato il pavimento vettoriale.
-
 \section{Le metriche}
 \label{sec:metriche}
 
-Tutte le metriche sono calcolate sul Top-K restituito, ai cutoff 5, 10 e 14. Ciascun cutoff è una selezione a sé: sia i bacini del ramo sia la testa riservata scalano con $k$, quindi un Top-10 non è il prefisso di un Top-14.
+Tutte le metriche sono calcolate sul Top-K restituito, ai cutoff 5 e 10. Ciascun cutoff è una selezione a sé: sia i bacini del ramo sia la testa riservata scalano con $k$, quindi un Top-5 non è necessariamente il prefisso di un Top-10
 
 \begin{itemize}
     \item \textbf{Complete HIT@K}: la domanda conta come risolta soltanto se \textit{tutti} i commi attesi si trovano entro il cutoff. È la metrica più severa e la più aderente al caso d'uso, perché una risposta normativa parziale può essere peggiore di nessuna risposta: un utente che riceve la regola generale senza la deroga che la disattiva riceve un'informazione scorretta.
     \item \textbf{Copertura gold@K}: la frazione dei commi attesi presenti nel cutoff. A differenza della precedente premia i progressi parziali.
     \item \textbf{Copertura supporting@K}: la stessa quantità, ristretta ai soli commi di supporto. Il confronto fra S1 e S2 su questa metrica indica quanto l'impiego delle relazioni aiuti a recuperare il contesto che completa la risposta.
-    \item \textbf{Primary HIT@K}: se il comma primario è stato trovato. Misura la capacità della graduatoria di conservare almeno una disposizione che risponde direttamente alla domanda.
     \item \textbf{MRR@K}: il reciproco del rango della prima risposta corretta. Misura la qualità dell'\textit{ordinamento}, non della selezione, ed è la metrica che un sistema generativo a valle consuma effettivamente, perché legge i risultati nell'ordine in cui arrivano.
 \end{itemize}
 
-Tutte le medie sono calcolate prima dentro ciascun modello e poi fra i modelli, così che i tre modelli pesino ugualmente. Dove due strategie vengono confrontate, il confronto è \textbf{appaiato}: si contano le valutazioni (domanda $\times$ modello) su cui le due strategie non concordano, riportando quante ne guadagna l'una e quante l'altra. Questa forma è preferita a un punteggio aggregato perché è direttamente ispezionabile --- ogni vittoria e ogni sconfitta corrisponde a una domanda identificabile nei log --- e perché i tre modelli valutano le stesse domande, quindi le loro risposte sono correlate e un test statistico che le assumesse indipendenti sarebbe ingiustificato.
+Tutte le medie sono calcolate prima dentro ciascun modello e poi fra i modelli, così che i tre modelli pesino ugualmente. Dove due strategie vengono confrontate, il confronto è \textbf{appaiato}: per ogni valutazione (domanda $\times$ modello) si osserva se il passaggio da S1 a S2 trasformi un risultato incompleto in completo, un risultato completo in incompleto oppure lasci invariato l'esito.
 
 \subsection{Configurazione sperimentale}
 
-Le misure riportate provengono dall'esecuzione \texttt{20260918T180810.030837Z} sul benchmark diagnostico. L'esecuzione utilizza le stesse classi impiegate dalla CLI, non una loro riproduzione. Il log registra il commit, lo stato dell'albero di lavoro, le impronte dei sorgenti e tutti i parametri, oltre al Top-10 effettivamente restituito per ciascuna domanda.
+Le misure riportate provengono dall'esecuzione \texttt{20260918T180810.030837Z} sul benchmark diagnostico. 
 
 I modelli di embedding confrontati sono i tre già introdotti nella Sezione~\ref{sec:creazione_embedding}, e il capitolo li impiega in \textbf{due ruoli distinti} che vanno dichiarati prima di leggere qualunque tabella che li elenca fianco a fianco, perché altrimenti la stessa riga sembra dire due cose diverse in due punti diversi del capitolo.
 
-\textbf{Primo ruolo, nelle Sezioni~\ref{sec:risultato_principale} e~\ref{sec:costo_grafo}: tre verifiche di robustezza.} La domanda posta lì è se la struttura migliori il recupero, ed è ripetuta con ciascun encoder per verificare che il segno del risultato non dipenda da una sola scelta del modello. Le tre misure non sono repliche statisticamente indipendenti, perché insistono sulle stesse domande, ma mostrano il comportamento della strategia in tre spazi di embedding differenti.
+\textbf{Primo ruolo, nelle Sezioni~\ref{sec:risultato_principale} e~\ref{sec:costo_grafo}: tre verifiche di robustezza.} La domanda posta lì è se la struttura migliori il recupero, ed è ripetuta con ciascun encoder per verificare che il segno del risultato non dipenda da una sola scelta del modello.
 
-\textbf{Secondo ruolo, nella Sezione~\ref{sec:antitesi}: due configurazioni da confrontare descrittivamente.} \texttt{pplx-embed-context-v1-0.6b} e \texttt{pplx-embed-v1-0.6b} appartengono alla stessa famiglia e hanno la stessa dimensione, ma differiscono per addestramento e modalità di costruzione dell'input. Il confronto fra i loro risultati descrive quindi il comportamento delle configurazioni complete e non isola causalmente il solo \textit{late chunking}. Il test principale dell'antitesi mantiene invece fisso l'encoder contestuale e misura se il passaggio da S1 a S2 produca ancora un guadagno.
+\textbf{Secondo ruolo, nella Sezione~\ref{sec:antitesi}: verifica con encoder contestuale fissato.} Il test mantiene fisso \texttt{pplx-embed-context-v1-0.6b} e misura se il passaggio da S1 a S2 produca ancora un guadagno. Il confronto con \texttt{pplx-embed-v1-0.6b} resta soltanto descrittivo: i due modelli differiscono per addestramento e modalità di costruzione dell'input, quindi non costituiscono un'ablazione a variabile singola del \textit{late chunking}.
 
 \section{Risultati sul benchmark diagnostico}
 \label{sec:risultato_principale}
@@ -101,96 +148,52 @@ I modelli di embedding confrontati sono i tre già introdotti nella Sezione~\ref
         \hline
         \textbf{Metrica} & \textbf{S1} & \textbf{S2} & \textbf{delta} \\
         \hline
-        Complete HIT@10 & 62,2\% & \textbf{79,6\%} & +17,4 pt \\
-        Complete HIT@5 & 48,3\% & \textbf{67,7\%} & +19,4 pt \\
-        Copertura gold@10 & 80,1\% & \textbf{87,9\%} & +7,8 pt \\
-        Copertura gold@5 & 70,4\% & \textbf{79,2\%} & +8,8 pt \\
-        Copertura supporting@10 & 69,2\% & \textbf{81,7\%} & +12,5 pt \\
-        Primary HIT@10 & 86,1\% & \textbf{91,5\%} & +5,4 pt \\
-        MRR@10 & \textbf{79,4\%} & 79,0\% & $-$0,4 pt \\
+        Complete HIT@10 & 62,4\% & \textbf{79,5\%} & +17,1 pt \\
+        Complete HIT@5 & 47,1\% & \textbf{66,2\%} & +19,0 pt \\
+        Copertura gold@10 & 80,4\% & \textbf{88,0\%} & +7,6 pt \\
+        Copertura gold@5 & 70,0\% & \textbf{79,1\%} & +9,1 pt \\
+        Copertura supporting@10 & 69,8\% & \textbf{82,0\%} & +12,2 pt \\
+        MRR@10 & \textbf{79,8\%} & 79,5\% & $-$0,4 pt \\
         \hline
     \end{tabular}
-    \caption{Confronto complessivo fra ricerca vettoriale pura (S1) e ricerca arricchita dalla struttura (S2), su 67 domande quantitative e tre modelli di embedding.}
+    \caption{Confronto complessivo fra ricerca vettoriale pura (S1) e ricerca arricchita dalla struttura (S2), su 70 domande e tre modelli di embedding.}
     \label{tab:risultato_principale}
 \end{table}
 
-Sulla composizione scelta per il benchmark, la strategia ibrida ottiene valori superiori su ogni metrica di selezione. Il dato aggregato non va però interpretato separatamente dalle slice: combina condizioni nelle quali le relazioni possono contribuire e condizioni nelle quali il meccanismo non è richiesto, con pesi stabiliti dalla costruzione del banco. L'unica metrica in cui S2 non migliora è l'MRR, che diminuisce di quattro decimi di punto a causa del costo di ordinamento introdotto dalla fusione.
+Sulla composizione scelta per il benchmark, la strategia ibrida ottiene valori superiori su ogni metrica di selezione. Il dato aggregato non va però interpretato separatamente dalle categorie: combina condizioni nelle quali le relazioni possono contribuire e condizioni nelle quali il meccanismo non è richiesto, con pesi stabiliti dalla costruzione del banco. L'unica metrica in cui S2 non migliora è l'MRR, che diminuisce di quattro decimi di punto a causa del costo di ordinamento introdotto dalla fusione.
 
-Il bilancio appaiato è nettamente asimmetrico: sulle 201 combinazioni domanda $\times$ modello, S2 guadagna \textbf{38} risposte complete e ne perde \textbf{3}. Il conteggio rende ispezionabili i casi di disaccordo, ma va letto come statistica descrittiva: le tre valutazioni associate alla stessa domanda sono correlate e non costituiscono osservazioni indipendenti.
+Sulle 210 valutazioni ottenute combinando 70 domande e tre encoder, il passaggio da S1 a S2 trasforma \textbf{39 risultati incompleti in completi} e \textbf{3 risultati completi in incompleti}; nelle restanti 168 valutazioni l'esito non cambia. Il conteggio rende ispezionabili i casi di disaccordo, ma va letto come statistica descrittiva: le tre valutazioni associate alla stessa domanda sono correlate e non costituiscono osservazioni indipendenti.
 
-\subsection{Il guadagno dipende dalla slice e non segue interamente l'attesa iniziale}
+\subsection{Il guadagno dipende dalla categoria e non segue interamente l'attesa iniziale}
 
 \begin{table}[H]
     \centering
     \renewcommand{\arraystretch}{1.2}
     \begin{tabular}{|l|r|r|r|}
         \hline
-        \textbf{Slice} & \textbf{S1} & \textbf{S2} & \textbf{delta} \\
+        \textbf{Categoria} & \textbf{S1} & \textbf{S2} & \textbf{delta} \\
         \hline
         \texttt{RELATIONAL\_CITES\_LOW\_SIMILARITY} & 53,3\% & \textbf{90,0\%} & +36,7 pt \\
         \texttt{RELATIONAL\_CITES\_HIGH\_SIMILARITY} & 60,0\% & \textbf{90,0\%} & +30,0 pt \\
         \texttt{RELATIONAL\_DEROGATES} & 70,0\% & \textbf{86,7\%} & +16,7 pt \\
         \texttt{MULTI\_ARTICLE} & 30,0\% & \textbf{70,0\%} & +40,0 pt \\
         \texttt{MULTI\_PARAGRAPH} & 60,0\% & \textbf{66,7\%} & +6,7 pt \\
-        \hline
         \texttt{SEMANTIC\_INDIRECT} & 73,3\% & 73,3\% & 0,0 pt \\
         \texttt{SEMANTIC\_DIRECT} & \textbf{90,0\%} & 80,0\% & $-$10,0 pt \\
         \hline
     \end{tabular}
-    \caption{Complete HIT@10 per slice. Le prime cinque righe sono le slice allineate a un meccanismo del sistema.}
-    \label{tab:per_slice}
+    \caption{Complete HIT@10 per categoria.}
+    \label{tab:per_categoria}
 \end{table}
 
-La Tabella~\ref{tab:per_slice} è più informativa della media che la riassume. Il guadagno non è diffuso: è concentrato sulle slice costruite attorno a un rinvio o a una distribuzione della risposta su più articoli, cioè dove il meccanismo può agire. Questa regolarità non coincide però interamente con la previsione iniziale: anche \mbox{\texttt{RELATIONAL\_CITES\_HIGH\_SIMILARITY}}, costruita come condizione di non-effetto atteso, guadagna 30 punti di Complete HIT@10. Sulle domande semantiche indirette il grafo è invece \textbf{esattamente neutro}, e sulle domande semantiche dirette \textbf{costa dieci punti}.
+La Tabella~\ref{tab:per_categoria} è più informativa della media che la riassume. Il guadagno non è diffuso: è concentrato sulle categorie costruite attorno a un rinvio o a una distribuzione della risposta su più articoli, cioè dove il meccanismo può agire. Questa regolarità non coincide però interamente con la previsione iniziale: anche \mbox{\texttt{RELATIONAL\_CITES\_HIGH\_SIMILARITY}}, costruita come condizione di non-effetto atteso, guadagna 30 punti di Complete HIT@10. Sulle domande semantiche indirette il grafo è invece \textbf{esattamente neutro}, e sulle domande semantiche dirette \textbf{costa dieci punti}.
 
-La scomposizione del controllo chiarisce il risultato. Sulle dieci domande e sui tre encoder, il Primary HIT@10 rimane invariato al 96,7\%: il grafo non rende più facile trovare la disposizione da cui la domanda prende avvio. La copertura dei commi di supporto passa invece dal 63,3\% al 93,3\%. Tutte le nove risposte complete guadagnate presentano lo stesso schema: S1 aveva già collocato il comma primario nella Top-10, ma non la disposizione richiamata necessaria a completare la risposta; S2 promuove quest'ultima ai ranghi 3--7. Non si osserva alcuna perdita nella slice.
+La scomposizione del controllo chiarisce il risultato. La copertura dei commi di supporto passa dal 63,3\% al 93,3\%. In nove valutazioni il passaggio da S1 a S2 trasforma un risultato incompleto in completo: S1 aveva già collocato il comma primario nella Top-10, ma non la disposizione richiamata necessaria a completare la risposta; S2 promuove quest'ultima ai ranghi 3--7. Il miglioramento osservato riguarda quindi, in questi casi, il recupero del contesto normativo collegato necessario a completare la risposta. Non si osserva il cambiamento inverso nella categoria.
 
-La previsione di non-effetto non è quindi confermata rispetto alla completezza della risposta. L'alta similarità fra i due estremi dell'arco non garantisce che entrambi compaiano nella Top-10 quando competono con l'intero corpus. Il controllo mette così in evidenza una funzione più circoscritta del grafo: non necessariamente individuare il primo comma pertinente, ma completare il contesto normativo a partire da esso. Questo risultato resta diagnostico, perché la slice è costruita attorno a rinvii che il sistema può percorrere e non ne misura la frequenza nel traffico reale.
+La previsione di non-effetto non è quindi confermata rispetto alla completezza della risposta. L'alta similarità fra i due estremi dell'arco non garantisce che entrambi compaiano nella Top-10 quando competono con l'intero corpus. Il controllo mette così in evidenza una funzione più circoscritta del grafo: non necessariamente individuare il primo comma pertinente, ma completare il contesto normativo a partire da esso. Questo risultato resta diagnostico, perché la categoria è costruita attorno a rinvii che il sistema può percorrere e non ne misura la frequenza nel traffico reale.
 
-Quest'ultima riga non è un difetto della misura, è la misura funzionante. Le domande dirette sono quelle in cui la ricerca vettoriale già risponde correttamente nel 90\% dei casi; su di esse il grafo non ha nulla da aggiungere, e i quattro slot che la fusione riserva a candidati di provenienza giuridica sostituiscono risultati vettoriali corretti. È il costo di eseguire un meccanismo dove non serve, ed è la ragione per cui il banco è stato modificato in modo da renderlo visibile.
+Quest'ultima riga non è un difetto della misura, è la misura funzionante. Le domande dirette sono quelle in cui la ricerca vettoriale già risponde correttamente nel 90\% dei casi; su di esse il grafo non ha nulla da aggiungere, e gli slot che la fusione riserva a candidati di provenienza giuridica sostituiscono risultati vettoriali corretti. È il costo di eseguire un meccanismo dove non serve: la misura complessiva non può essere interpretata come un guadagno netto, ma come un guadagno in condizioni favorevoli e un costo in condizioni sfavorevoli.
 
-\subsection{Composizione: che cosa significa la media}
-\label{sec:composizione}
-
-\begin{table}[H]
-    \centering
-    \renewcommand{\arraystretch}{1.2}
-    \begin{tabular}{|l|c|r|r|r|c|}
-        \hline
-        \textbf{Metà del banco} & \textbf{n} & \textbf{S1} & \textbf{S2} & \textbf{delta} & \textbf{vinte / perse} \\
-        \hline
-        costruita sul meccanismo & 47 & 53,9\% & 80,9\% & +27,0 pt & 38 / 0 \\
-        \textbf{non} costruita sul meccanismo & 20 & 81,7\% & 76,7\% & $-$5,0 pt & 0 / 3 \\
-        \hline
-        banco intero & 67 & 62,2\% & 79,6\% & +17,4 pt & 38 / 3 \\
-        \hline
-    \end{tabular}
-    \caption{Complete HIT@10 separato per composizione. Il +17,4 della riga inferiore è una media pesata delle due righe superiori, con pesi scelti dall'autore.}
-    \label{tab:composizione}
-\end{table}
-
-La Tabella~\ref{tab:composizione} contiene la lettura corretta del risultato principale. Le due metà del banco non dicono la stessa cosa: dove il meccanismo si applica il guadagno è di 27 punti con 38 vittorie e nessuna sconfitta; dove non si applica la perdita è di 5 punti con 3 sconfitte e nessuna vittoria. Il \textbf{+17,4} complessivo è la media pesata di queste due grandezze, e il peso --- 47 domande contro 20 --- è una decisione dell'autore del banco, non una proprietà del traffico reale.
-
-Un sistema in produzione può ricevere una miscela diversa, e la sua media può quindi essere diversa. Il benchmark permette di misurare separatamente le condizioni rappresentate dalle slice, ma non consente di stimarne la frequenza nel traffico reale.
-
-\subsection{Il risultato regge sullo split tenuto da parte}
-
-\begin{table}[H]
-    \centering
-    \renewcommand{\arraystretch}{1.2}
-    \begin{tabular}{|l|c|r|r|r|c|}
-        \hline
-        \textbf{Split} & \textbf{n} & \textbf{S1} & \textbf{S2} & \textbf{delta} & \textbf{vinte / perse} \\
-        \hline
-        \texttt{dev} (di selezione) & 28 & 66,7\% & 79,8\% & +13,1 pt & 12 / 1 \\
-        \texttt{test} (tenuto da parte) & 39 & 59,0\% & 79,5\% & +20,5 pt & 26 / 2 \\
-        \hline
-    \end{tabular}
-    \caption{Complete HIT@10 per split. Il guadagno su \texttt{test} non è inferiore a quello su \texttt{dev}.}
-    \label{tab:split}
-\end{table}
-
-Il guadagno sullo split tenuto da parte non è soltanto presente: è maggiore di quello sullo split di selezione. Questo controllo mostra che la configurazione non è stata tarata sulle domande dello split \texttt{test}; non rende però il benchmark rappresentativo di una distribuzione esterna di domande.
 
 \subsection{Il segno del risultato si ripete sui tre encoder}
 \label{sec:invarianza_encoder}
@@ -202,53 +205,30 @@ Il guadagno sullo split tenuto da parte non è soltanto presente: è maggiore di
         \hline
         \textbf{Modello di embedding} & \textbf{S1} & \textbf{S2} & \textbf{delta} \\
         \hline
-        \texttt{embeddinggemma-300m} & 55,2\% & 79,1\% & +23,9 pt \\
-        \texttt{pplx-embed-context-v1-0.6b} & 65,7\% & 77,6\% & +11,9 pt \\
-        \texttt{pplx-embed-v1-0.6b} & 65,7\% & 82,1\% & +16,4 pt \\
+        \texttt{embeddinggemma-300m} & 54,3\% & 77,1\% & +22,9 pt \\
+        \texttt{pplx-embed-v1-0.6b} & 65,7\% & 82,9\% & +17,1 pt \\
+        \texttt{pplx-embed-context-v1-0.6b} & 67,1\% & 78,6\% & +11,4 pt \\
         \hline
     \end{tabular}
     \caption{Complete HIT@10 per modello di embedding, sul banco principale.}
     \label{tab:per_modello}
 \end{table}
 
-Ciò che è invariante è il \textbf{segno} del delta: tutti e tre gli encoder migliorano con la struttura, e nessuno peggiora. Ciò che non è invariante è l'\textbf{ampiezza}: il modello che parte dal valore più basso riceve il guadagno maggiore, mentre quello contestuale riceve il guadagno minore (+11,9 punti). La tabella mostra quindi che, nelle condizioni del benchmark, nessuno dei tre encoder rende superfluo il contributo della struttura; non dimostra invece che tale contributo sia indipendente dall'encoder in senso forte.
+Ciò che è invariante è il \textbf{segno} del delta: tutti e tre gli encoder migliorano con la struttura, e nessuno peggiora. Ciò che non è invariante è l'\textbf{ampiezza}: il modello che parte dal valore più basso riceve il guadagno maggiore, mentre quello contestuale riceve il guadagno minore (+11,4 punti). La tabella mostra quindi che, nelle condizioni del benchmark, nessuno dei tre encoder rende superfluo il contributo della struttura; non dimostra invece che tale contributo sia indipendente dall'encoder in senso forte.
 
 \section{Il costo della struttura}
 \label{sec:costo_grafo}
 
-Un risultato che riporta soltanto i guadagni non è una misura. Il grafo ha tre costi distinti, e tutti e tre sono quantificabili.
+Un risultato che riporta soltanto i guadagni non è una misura. Nella configurazione valutata il grafo presenta due costi osservabili: uno sull'ordinamento e uno sul tempo di ricerca.
 
 \subsection{Il costo di ordinamento}
 
 Il primo costo è l'MRR: $-$0,4 punti. È piccolo, ma la sua origine è istruttiva. La fusione promuove i commi che compaiono in entrambe le liste, e questi sono tipicamente commi \textit{collegati} alla risposta piuttosto che la risposta stessa; il comma che risponde direttamente può quindi scivolare dal primo posto. La testa riservata esiste per contenere questo effetto, e la sua efficacia è misurabile disattivandola: sul benchmark il rango medio della prima risposta corretta perde oltre cinque punti di MRR, a copertura invariata. È quindi il principale presidio della pipeline contro il deterioramento dell'ordinamento.
 
-\subsection{Il costo di spodestamento}
-
-Il secondo costo è meno ovvio. Al cutoff 10, i risultati che il grafo promuove prendono il posto di altrettanti risultati vettoriali. Tutte le risposte complete che S2 perde rispetto a S1 sono commi attesi che in S1 si trovavano ai ranghi 8--10: sono stati \textit{sfrattati}, non sbagliati. Per separare ciò che il grafo aggiunge da ciò che l'interleaving costa, il benchmark misura anche a cutoff 14, dove il grafo dispone di quattro posizioni proprie.
-
-\begin{table}[H]
-    \centering
-    \renewcommand{\arraystretch}{1.2}
-    \begin{tabular}{|l|r|r|r|}
-        \hline
-        \textbf{Metrica} & \textbf{S1@10} & \textbf{S2@10} & \textbf{S2@14} \\
-        \hline
-        Complete HIT & 62,2\% & 79,6\% & \textbf{83,1\%} \\
-        Copertura gold & 80,1\% & 87,9\% & \textbf{90,8\%} \\
-        MRR & 79,4\% & 79,0\% & 79,2\% \\
-        \hline
-        bilancio contro S1@10 & --- & 38 / 3 & \textbf{42 / 0} \\
-        \hline
-    \end{tabular}
-    \caption{Effetto del cutoff. A Top-14 il grafo dispone di slot propri e non spodesta risultati vettoriali.}
-    \label{tab:cutoff14}
-\end{table}
-
-La riga inferiore chiarisce l'origine delle tre sconfitte osservate: dando al grafo quattro posizioni aggiuntive, il bilancio passa da 38 vittorie e 3 sconfitte a \textbf{42 vittorie e nessuna sconfitta}. Nel benchmark, quindi, il cutoff 14 evita gli spodestamenti rilevati a Top-10. Il risultato suggerisce di valutare un contesto più ampio quando il sistema a valle possa sostenerlo, ma non garantisce l'assenza di perdite su distribuzioni diverse.
 
 \subsection{Il costo computazionale}
 
-Il terzo costo è il tempo. La strategia ibrida aggiunge un percorso di andata e ritorno verso il grafo e la fusione di due graduatorie.
+Il secondo costo è il tempo. La strategia ibrida aggiunge un percorso di andata e ritorno verso il grafo e la fusione di due graduatorie.
 
 \begin{table}[H]
     \centering
@@ -259,39 +239,18 @@ Il terzo costo è il tempo. La strategia ibrida aggiunge un percorso di andata e
         \hline
         S1 & Top-10 & 16 ms & 16 ms & 20 ms \\
         S2 & Top-10 & 18 ms & 21 ms & 35 ms \\
-        S1 & Top-14 & 15 ms & 16 ms & 21 ms \\
-        S2 & Top-14 & 18 ms & 20 ms & 31 ms \\
         \hline
     \end{tabular}
     \caption{Latenza di \texttt{strategy.search()}, mediata sui tre modelli. Esclude la codifica della domanda.}
     \label{tab:latenza}
 \end{table}
 
-Il sovracosto è di circa 2--5~ms sulla mediana e di 15~ms sul novantacinquesimo percentile. In termini relativi è un incremento sensibile; nelle condizioni hardware e software della misura, il suo valore assoluto rimane contenuto rispetto alla codifica della domanda e alla successiva generazione della risposta. La valutazione consente quindi di considerare sostenibile il costo computazionale della struttura nella configurazione sperimentata, senza generalizzare la misura ad altri ambienti.
+Il sovracosto è di circa 2--5~ms sulla mediana e di 15~ms sul novantacinquesimo percentile. In termini relativi è un incremento sensibile; in condizioni hardware e software della misura, il suo valore assoluto rimane contenuto rispetto alla codifica della domanda e alla successiva generazione della risposta. La valutazione consente quindi di considerare sostenibile il costo computazionale della struttura nella configurazione sperimentata, senza generalizzare la misura ad altri ambienti.
 
-\section{L'antitesi: il late chunking rende superfluo il grafo?}
+\section{Il contributo del grafo con un encoder contestuale}
 \label{sec:antitesi}
 
-Il grafo e il \textit{late chunking} affrontano entrambi la perdita di contesto prodotta dalla suddivisione di un documento in unità atomiche, ma lo fanno in modi diversi. Un comma come \textquote{la disposizione non si applica se essi dimostrano l'assenza di dolo} dipende dal testo che lo circonda e può inoltre richiamare disposizioni collocate altrove.
-
-Esistono due modi di risolverlo, e questo lavoro li implementa entrambi:
-
-\begin{itemize}
-    \item il \textbf{late chunking} incorpora implicitamente il contesto dell'articolo nella rappresentazione dei singoli commi, elaborando i chunk congiuntamente prima del \textit{pooling};
-    \item il \textbf{grafo} rappresenta esplicitamente collegamenti giuridici fra disposizioni e li percorre al momento della ricerca per riordinare il bacino vettoriale.
-\end{itemize}
-
-Da questa sovrapposizione nasce l'obiezione più rilevante per l'impianto della tesi:
-
-\begin{quote}
-\textit{Se ogni comma viene rappresentato tenendo conto dell'intero articolo, il contesto incorporato dall'encoder potrebbe rendere trascurabile il contributo marginale delle relazioni esplicite.}
-\end{quote}
-
-L'antitesi non richiede di stabilire se il late chunking sia una tecnica valida in assoluto. Richiede un test più circoscritto: mantenendo fisso l'encoder contestuale, il passaggio dalla strategia vettoriale S1 alla strategia strutturale S2 produce ancora un guadagno? Se la struttura fosse diventata ridondante, quel guadagno dovrebbe essere nullo o trascurabile.
-
-\subsection{Il test diretto: fissare l'encoder contestuale}
-
-Il confronto principale dell'antitesi non mette due encoder l'uno contro l'altro. Usa esclusivamente \texttt{pplx-embed-context-v1-0.6b} e misura la differenza fra S1 e S2.
+Il grafo e il \textit{late chunking} possono entrambi compensare la perdita di contesto prodotta dalla suddivisione di un documento in unità atomiche, ma impiegano segnali differenti. Il \textit{late chunking} incorpora nella rappresentazione di ciascun comma informazioni provenienti dal resto dell'articolo; il grafo codifica invece relazioni esplicite fra disposizioni e le usa durante la ricerca. La parziale sovrapposizione solleva una verifica di robustezza rilevante per il risultato principale: \textit{se la rappresentazione vettoriale è già contestualizzata, le relazioni esplicite conservano un contributo osservabile?}
 
 \begin{table}[H]
     \centering
@@ -300,199 +259,77 @@ Il confronto principale dell'antitesi non mette due encoder l'uno contro l'altro
         \hline
         \textbf{Metrica con encoder contestuale} & \textbf{S1} & \textbf{S2} & \textbf{delta} \\
         \hline
-        Complete HIT@10 & 65,7\% & \textbf{77,6\%} & +11,9 pt \\
-        Copertura supporting@10 & 70,5\% & \textbf{78,7\%} & +8,2 pt \\
+        Complete HIT@10 & 67,1\% & \textbf{78,6\%} & +11,4 pt \\
+        Copertura gold@10 & 81,3\% & \textbf{86,8\%} & +5,5 pt \\
+        Copertura supporting@10 & 71,9\% & \textbf{79,7\%} & +7,8 pt \\
+        MRR@10 & \textbf{75,2\%} & 74,8\% & $-$0,5 pt \\
         \hline
     \end{tabular}
     \caption{Contributo della struttura mantenendo fisso l'encoder contestuale.}
     \label{tab:antitesi_test_diretto}
 \end{table}
 
-Entrambe le metriche aumentano. Nel benchmark considerato, quindi, la contestualizzazione interna all'encoder non assorbe il contributo delle relazioni esplicite: la struttura migliora ancora sia la completezza complessiva sia il recupero delle disposizioni che completano la risposta. Questo risultato confuta la forma forte dell'antitesi nelle condizioni valutate, senza richiedere che il modello contestuale sia migliore o peggiore di un altro encoder.
+Sull'intero banco di 70 domande, la struttura guadagna 11,4 punti di Complete HIT@10 anche quando i commi sono rappresentati mediante l'encoder contestuale. La copertura dei commi gold aumenta di 5,5 punti e, sulle domande per le quali sono definiti commi di supporto, la loro copertura cresce di 7,8 punti. L'MRR diminuisce invece di 0,5 punti, riproducendo su scala ridotta il costo di ordinamento osservato nel confronto aggregato. Il risultato respinge quindi, nelle condizioni valutate, l'ipotesi forte secondo cui la contestualizzazione dell'encoder assorbirebbe interamente il contributo delle relazioni esplicite.
 
-Le analisi successive caratterizzano il comportamento della configurazione contestuale e il compromesso osservato rispetto alla configurazione standard. Tale confronto è descrittivo, perché i due modelli PPLX differiscono per addestramento e modalità di costruzione dell'input e non costituiscono un'ablazione a variabile singola.
-
-\subsection{L'effetto geometrico della contestualizzazione}
-\label{sub:geometria}
-
-Su un sottoinsieme di 34 articoli e 168 commi, lo stesso encoder contestuale è stato applicato una volta ai commi elaborati congiuntamente nell'articolo e una volta agli stessi commi presentati in isolamento. Questa analisi controllata descrive come cambia la geometria delle rappresentazioni quando viene introdotto il contesto dell'articolo:
-
-\begin{table}[H]
-    \centering
-    \renewcommand{\arraystretch}{1.2}
-    \begin{tabular}{|l|r|}
-        \hline
-        \textbf{Misura} & \textbf{Valore} \\
-        \hline
-        coseno fra comma contestualizzato e comma isolato & 0,8287 \\
-        minimo osservato & 0,6335 \\
-        coseno fra commi fratelli, senza contesto & 0,5416 \\
-        coseno fra commi fratelli, con contesto & \textbf{0,7591} \\
-        variazione verso il centroide degli isolati & +0,0073 \\
-        \hline
-    \end{tabular}
-    \caption{Effetto geometrico del late chunking nello spazio degli embedding.}
-    \label{tab:geometria_late_chunking}
-\end{table}
-
-I dati mostrano che la contestualizzazione modifica in misura visibile le rappresentazioni e aumenta di oltre 0,21 la similarità media fra commi dello stesso articolo. Il risultato è coerente con il comportamento atteso dal late chunking: i chunk mantengono un embedding distinto, ma condividono una quantità maggiore di informazione proveniente dal contenitore. La variazione di appena 0,0073 verso il centroide degli embedding isolati suggerisce inoltre che l'effetto non sia descrivibile come una semplice media aritmetica con i commi circostanti.
-
-Poiché l'analisi riguarda soltanto 168 commi ricostruiti, questi valori descrivono il sottoinsieme osservato e non vengono usati per stimare l'effetto geometrico sull'intero corpus.
-
-\subsection{Un compromesso fra selezione e ordinamento}
-\label{sub:contestuale_perde}
-
-Il confronto fra le configurazioni contestuale e standard non isola il solo late chunking, ma permette di descrivere il diverso comportamento delle graduatorie prodotte sul benchmark.
+Il risultato aggregato non chiarisce tuttavia in quali condizioni il grafo mantenga il proprio vantaggio. La scomposizione per categoria mostra che l'effetto non consiste in un miglioramento uniforme.
 
 \begin{table}[H]
     \centering
     \renewcommand{\arraystretch}{1.2}
     \begin{tabular}{|l|r|r|r|}
         \hline
-        \textbf{Metrica (S1, 70 domande)} & \textbf{gemma} & \textbf{contestuale} & \textbf{standard} \\
+        \textbf{Categoria} & \textbf{S1} & \textbf{S2} & \textbf{delta} \\
         \hline
-        Complete HIT@10 & 54,3\% & \textbf{67,1\%} & 65,7\% \\
-        MRR@10 & 79,8\% & 75,2\% & \textbf{84,5\%} \\
-        prima risposta corretta al rango 1 & 72,9\% & \textbf{62,9\%} & \textbf{77,1\%} \\
+        \texttt{RELATIONAL\_CITES\_LOW\_SIMILARITY} & 50,0\% & \textbf{80,0\%} & +30,0 pt \\
+        \texttt{RELATIONAL\_CITES\_HIGH\_SIMILARITY} & 50,0\% & \textbf{80,0\%} & +30,0 pt \\
+        \texttt{RELATIONAL\_DEROGATES} & 90,0\% & \textbf{100,0\%} & +10,0 pt \\
+        \texttt{MULTI\_ARTICLE} & 50,0\% & \textbf{70,0\%} & +20,0 pt \\
+        \rowcolor{orange!25}
+        \texttt{MULTI\_PARAGRAPH} & 70,0\% & 70,0\% & 0,0 pt \\
+        \texttt{SEMANTIC\_INDIRECT} & 80,0\% & 80,0\% & 0,0 pt \\
+        \texttt{SEMANTIC\_DIRECT} & \textbf{80,0\%} & 70,0\% & $-$10,0 pt \\
         \hline
     \end{tabular}
-    \caption{I tre encoder sulla ricerca vettoriale pura. La configurazione contestuale mostra un compromesso fra selezione e ordinamento.}
-    \label{tab:late_chunking_principale}
+    \caption{Complete HIT@10 per categoria mantenendo fisso l'encoder contestuale.}
+    \label{tab:antitesi_per_categoria}
 \end{table}
 
-Il risultato mostra un compromesso. Sulla metrica di \textit{selezione} la configurazione contestuale raggiunge il valore più alto, con un vantaggio di 1,4 punti sulla configurazione standard. Sulle metriche di \textit{ordinamento}, invece, ottiene risultati inferiori: colloca la prima risposta corretta al primo posto nel 62,9\% dei casi contro il 77,1\%. Il confronto appaiato su quest'ultima metrica dà \textbf{3 domande vinte e 13 perse}, con bilancio identico sulle due strategie di ricerca.
+Il vantaggio di S2 si concentra nelle categorie relazionali e in \texttt{MULTI\_ARTICLE}; \texttt{MULTI\_PARAGRAPH} e \texttt{SEMANTIC\_INDIRECT} rimangono invarianti, mentre \texttt{SEMANTIC\_DIRECT} perde dieci punti. Questa distribuzione è coerente con quanto osservato nel confronto per categoria (Tabella \ref{tab:per_categoria}), tranne che per \texttt{MULTI\_PARAGRAPH}: nel confronto precedente beneficia della struttura, ma con l'encoder contestuale non mostra alcun guadagno aggiuntivo.
 
-I dati non consentono quindi di designare un vincitore assoluto: la configurazione contestuale conserva o migliora lievemente la capacità di includere la risposta nel Top-10, ma nel benchmark la posiziona meno spesso in testa. Poiché i modelli e gli input differiscono, questo deficit non può essere attribuito causalmente al solo late chunking.
-
-\subsection{Dove l'errore accade}
-\label{sub:dove_errore}
-
-Una possibile spiegazione è che i commi fratelli, resi più simili fra loro dal contesto condiviso, si confondano l'uno con l'altro: il modello troverebbe l'articolo giusto e il comma sbagliato. I dati non sostengono questa lettura come causa principale: i commi fratelli non attesi che precedono la prima risposta corretta sono 0,21 per domanda con il modello contestuale contro 0,17 con quello standard.
-
-L'errore è di un livello più in alto.
+Fra le condizioni neutrali, \texttt{MULTI\_PARAGRAPH} costituisce il controllo più direttamente pertinente al rapporto fra grafo e \textit{late chunking}: richiede di recuperare più commi dello stesso articolo, ossia informazioni comprese nella medesima finestra di contestualizzazione dell'encoder. Se il grafo compensasse principalmente la perdita di contesto intra-articolo, il suo contributo dovrebbe quindi ridursi, o scomparire, in questa categoria.
 
 \begin{table}[H]
     \centering
     \renewcommand{\arraystretch}{1.2}
-    \begin{tabular}{|l|r|r|}
+    \begin{tabular}{|l|r|r|r|}
         \hline
-        \textbf{Misura sul primo risultato (S1, 70 domande)} & \textbf{contestuale} & \textbf{isolato} \\
+        \textbf{Metrica su \texttt{MULTI\_PARAGRAPH}} & \textbf{S1} & \textbf{S2} & \textbf{delta} \\
         \hline
-        il primo risultato appartiene all'articolo atteso & 74,3\% & \textbf{85,7\%} \\
-        margine fra il primo e il secondo punteggio & 0,0200 & 0,0275 \\
-        \hline
-    \end{tabular}
-    \caption{Localizzazione degli errori di testa nelle configurazioni contestuale e standard.}
-    \label{tab:errore_articolo}
-\end{table}
-
-La differenza principale si osserva nella scelta dell'articolo: il primo risultato appartiene all'articolo atteso nel 74,3\% dei casi con la configurazione contestuale e nell'85,7\% con quella standard. Anche il margine fra il primo e il secondo candidato è inferiore nella prima configurazione. Questi dati localizzano il comportamento osservato, ma non ne identificano da soli la causa.
-
-Il risultato è coerente con una possibile interpretazione della geometria riportata nella Tabella~\ref{tab:geometria_late_chunking}: aumentando la coesione fra i commi di uno stesso articolo, la rappresentazione del singolo comma può diventare più sensibile al significato complessivo del contenitore e meno al suo segnale locale. Questa rimane un'ipotesi esplicativa, non una relazione causale dimostrata dal confronto fra i due modelli.
-
-\subsection{L'associazione con la citazione testuale}
-\label{sub:causa}
-
-Per verificare se il comportamento osservato sia associato alla presenza di un segnale letterale molto specifico, le 70 domande sono state stratificate a seconda che citino o meno testualmente un articolo:
-
-\begin{table}[H]
-    \centering
-    \renewcommand{\arraystretch}{1.2}
-    \begin{tabular}{|l|c|r|r|r|}
-        \hline
-        \textbf{Tipo di domanda} & \textbf{n} & \textbf{contestuale} & \textbf{standard} & \textbf{delta} \\
-        \hline
-        cita testualmente un articolo & 23 & 60,9\% & 82,6\% & \textbf{$-$21,7 pt} \\
-        non cita alcun articolo & 47 & 63,8\% & 74,5\% & $-$10,6 pt \\
+        Complete HIT@10 & 70,0\% & 70,0\% & 0,0 pt \\
+        Copertura gold@10 & 76,7\% & 76,7\% & 0,0 pt \\
+        Copertura supporting@10 & 75,0\% & 75,0\% & 0,0 pt \\
+        MRR@10 & 65,8\% & 65,8\% & 0,0 pt \\
         \hline
     \end{tabular}
-    \caption{Prima risposta corretta al rango 1, stratificata per presenza di una citazione testuale nella domanda.}
-    \label{tab:stratificazione}
+    \caption{Confronto fra S1 e S2 sulle dieci domande \texttt{MULTI\_PARAGRAPH}, mantenendo fisso l'encoder contestuale.}
+    \label{tab:multi_paragraph_context}
 \end{table}
 
-La differenza fra le configurazioni è più ampia in presenza di una citazione testuale: $-$21,7 punti contro $-$10,6. Il risultato è coerente con l'ipotesi che una rappresentazione maggiormente influenzata dal contesto dell'articolo attenui il peso di un riferimento locale molto specifico. La stratificazione non dimostra tuttavia che la citazione sia la causa del deficit, perché i due gruppi possono differire anche per altre proprietà delle domande.
+S1 e S2 ottengono gli stessi risultati su tutte le metriche considerate. In questa categoria non emerge quindi un vantaggio ulteriore del grafo. Il pareggio è coerente con una sovrapposizione dei due segnali quando il contesto necessario è interno allo stesso articolo; la Tabella~\ref{tab:antitesi_per_categoria} mostra però che il grafo conserva un contributo nelle altre categorie, ossia quelle che coinvolgono relazioni esplicite o più articoli.
 
-A questo punto è possibile descrivere il compromesso osservato: la configurazione contestuale mantiene una buona capacità di selezione, ma ordina peggio le risposte in questo benchmark, soprattutto nel gruppo di domande che contiene una citazione testuale. Tale comportamento non modifica però il risultato del test diretto della Tabella~\ref{tab:antitesi_test_diretto}: anche usando questa configurazione, la struttura conserva un contributo positivo.
+Le due tecniche operano su forme di contesto differenti. Il \textit{late chunking} contestualizza ciascun comma mediante le informazioni contenute nella finestra ricevuta dall'encoder, che in questa implementazione coincide con l'articolo. La ricerca vettoriale continua a interrogare l'intero corpus, ma ogni rappresentazione incorpora direttamente soltanto il contesto intra-articolo.
 
-\subsection{Il contributo sui commi di supporto}
-\label{sub:prova_diretta}
+Il grafo codifica invece relazioni esplicite tra disposizioni, indipendentemente dal fatto che appartengano o meno allo stesso articolo. Durante la ricerca, tali relazioni possono essere impiegate per promuovere candidati presenti nel bacino vettoriale. Il segnale strutturale può quindi estendersi oltre il perimetro contestualizzato dall'encoder.
 
-Il benchmark distingue i commi che rispondono direttamente alla domanda dalle disposizioni di supporto la cui pertinenza deriva da un collegamento normativo o strutturale. La ricerca vettoriale può recuperare entrambe le categorie; il confronto fra S1 e S2 misura se l'uso esplicito delle relazioni aumenti la copertura della seconda.
-
-\begin{table}[H]
-    \centering
-    \renewcommand{\arraystretch}{1.2}
-    \begin{tabular}{|l|r|r|}
-        \hline
-        \textbf{Encoder} & \textbf{senza grafo (S1)} & \textbf{con grafo (S2)} \\
-        \hline
-        \texttt{embeddinggemma-300m} & 63,5\% & 81,6\% \\
-        \texttt{pplx-embed-context} (late chunking) & 70,5\% & 78,7\% \\
-        \texttt{pplx-embed} (standard) & \textbf{73,7\%} & \textbf{84,8\%} \\
-        \hline
-    \end{tabular}
-    \caption{Copertura dei commi di supporto a Top-10, per encoder e per strategia.}
-    \label{tab:supporting_encoder}
-\end{table}
-
-La lettura rilevante è per riga: passando da S1 a S2, la copertura aumenta con tutti e tre gli encoder. Con quello contestuale cresce di 8,2 punti, dal 70,5\% al 78,7\%. Il confronto verticale fra il 70,5\% del contestuale e il 73,7\% dello standard è invece soltanto descrittivo e non prova che il late chunking peggiori il recupero dei commi di supporto. Ciò che i dati sostengono è più circoscritto: fra gli encoder valutati, nessuno elimina il guadagno associato all'impiego della struttura.
-
-\subsection{Ambiti complementari}
-\label{sub:assi_ortogonali}
-
-Il risultato è coerente con il diverso ambito operativo delle due tecniche.
-
-\textbf{Il late chunking contestualizza entro la finestra ricevuta dall'encoder, che in questa implementazione coincide con l'articolo.} La rappresentazione di ciascun comma può quindi incorporare informazioni provenienti dagli altri commi dello stesso articolo. La ricerca vettoriale continua comunque a interrogare l'intero corpus e può recuperare disposizioni esterne sulla base del loro contenuto.
-
-\textbf{Il grafo aggiunge un segnale diverso}: codifica esplicitamente che due disposizioni sono collegate e può usare quel legame per promuovere un candidato già presente nel bacino vettoriale. Le relazioni giuridiche del corpus --- 1.030 archi \texttt{CITES} e 41 \texttt{DEROGATES} --- collegano anche disposizioni appartenenti ad articoli o atti differenti.
-
-I due segnali sono pertanto complementari, ma non privi di costi. La contestualizzazione modifica direttamente gli embedding; la struttura lascia invariati i vettori, ma la fusione può spodestare risultati utili a cutoff fisso, come mostra la perdita sulla slice \texttt{SEMANTIC\_DIRECT}. La conclusione non è che una tecnica sia intrinsecamente superiore all'altra: nel benchmark il contesto intra-articolo non elimina il valore marginale delle relazioni esplicite, mentre entrambe le configurazioni richiedono una valutazione del proprio effetto sull'ordinamento.
-
-\subsection{Controlli diagnostici}
-
-La differenza di ordinamento fra le configurazioni ammette diverse spiegazioni concorrenti. I controlli seguenti permettono di ridimensionarne alcune, senza trasformare l'ipotesi della diluizione in una conclusione causale.
-
-\begin{table}[H]
-    \centering
-    \renewcommand{\arraystretch}{1.2}
-    \begin{tabular}{|p{4.6cm}|p{6.4cm}|c|}
-        \hline
-        \textbf{Ipotesi} & \textbf{Misura} & \textbf{Esito} \\
-        \hline
-        asimmetria di quantizzazione fra lato corpus e lato query & coseno fra vettore continuo e quantizzato 0,9994; il primo risultato non cambia in 12 casi su 12 & esclusa \\
-        \hline
-        \textit{hubness}: pochi commi attraggono tutte le domande & 605 commi distinti su 700 posizioni contro 615 del modello standard & non sostenuta \\
-        \hline
-        distorsione di lunghezza & 340 caratteri mediani al primo posto contro 338 & esclusa \\
-        \hline
-        confusione fra commi fratelli & 0,21 fratelli non attesi prima della risposta contro 0,17 & marginale \\
-        \hline
-        quasi-duplicati nel corpus & spiegano 1 caso su 13 & marginale \\
-        \hline
-        dimensione dell'articolo come misura della diluizione & relazione non monotona & non stabilita \\
-        \hline
-    \end{tabular}
-    \caption{Controlli diagnostici sulla differenza di ordinamento fra le configurazioni.}
-    \label{tab:ipotesi_scartate}
-\end{table}
-
-La prima riga meritava di essere verificata perché corrispondeva a un difetto reale del codice, poi corretto: il lato corpus attraversava una quantizzazione a interi che il lato query non attraversava. La misura ha però mostrato che il vettore ha norma tale da rendere quella trasformazione quasi lineare, e l'effetto sul recupero è nullo. Resta un difetto di igiene, non una causa.
-
-L'indagine sui quasi-duplicati ha prodotto un ritrovamento indipendente che vale la pena registrare: fra i soli 1.053 commi osservati nei log esistono \textbf{37 gruppi di testo identico appartenenti ad atti diversi} --- un codice di comportamento in due annualità, tre copie dello stesso regolamento, un contratto disciplinare in due versioni. È un problema di igiene del corpus che riguarda ugualmente tutti e tre i modelli, e che ogni sistema di recupero su normativa pubblica è destinato a incontrare.
-
-\subsection{Sintesi dell'antitesi}
-
-I risultati non confutano l'utilità del late chunking come tecnica di contestualizzazione intra-articolo. Mostrano invece che, nel benchmark considerato, tale contestualizzazione non assorbe il contributo delle relazioni esplicite: mantenendo fisso l'encoder contestuale, S2 guadagna 11,9 punti di Complete HIT@10 e 8,2 punti di copertura dei commi di supporto rispetto a S1.
-
-Il confronto descrittivo fra encoder evidenzia inoltre un compromesso: la configurazione contestuale conserva una completezza comparabile, ma colloca meno spesso la prima risposta corretta in testa. L'associazione con le citazioni testuali è coerente con un'ipotesi di attenuazione del segnale locale, ma non la dimostra causalmente. La conclusione sostenuta dai dati è quindi circoscritta: \textbf{nel benchmark diagnostico, il late chunking non rende ridondante il reranking basato sulle relazioni giuridiche}.
+I risultati sono coerenti con questa distinzione. In \texttt{MULTI\_PARAGRAPH}, dove i commi attesi appartengono allo stesso articolo, l'aggiunta del grafo non produce un beneficio osservabile. Il vantaggio rimane invece nelle categorie relazionali e in \texttt{MULTI\_ARTICLE}, cioè in condizioni nelle quali la risposta può coinvolgere collegamenti o contenuti distribuiti oltre il singolo articolo. Nel benchmark considerato emerge quindi una parziale sovrapposizione sul contesto intra-articolo, ma non una completa ridondanza tra contestualizzazione e relazioni esplicite.
 
 \section{Limiti della valutazione}
 
-Il capitolo si chiude dichiarando ciò che le sue misure non stabiliscono.
+Prima di sintetizzare i risultati complessivi, è opportuno chiarire ciò che le misure adottate non consentono di stabilire.
 
-\textbf{La dimensione del campione è modesta.} Settanta domande consentono di descrivere differenze ampie, ma non di attribuire un significato forte a scarti di pochi punti. Le 201 combinazioni domanda $\times$ modello non sono osservazioni indipendenti, perché i tre encoder vengono valutati sugli stessi quesiti.
+\textbf{La dimensione del campione è modesta.} Settanta domande consentono di descrivere differenze ampie, ma non di attribuire un significato forte a scarti di pochi punti. Le 210 combinazioni domanda $\times$ modello non sono osservazioni indipendenti, perché i tre encoder vengono valutati sugli stessi 70 quesiti.
 
-\textbf{Il benchmark è costruito, non campionato.} Cinque slice su sette sono state scritte attorno a un meccanismo del sistema, e la media complessiva ne eredita i pesi. I risultati mostrano quindi che cosa accade nelle condizioni rappresentate dalle slice, ma non stimano la frequenza di tali condizioni nel traffico reale.
+\textbf{Il benchmark è costruito, non campionato.} Cinque categorie su sette sono state scritte attorno a un meccanismo del sistema. I risultati mostrano quindi che cosa accade nelle condizioni rappresentate dalle categorie, ma non stimano la frequenza di tali condizioni nel traffico reale.
 
 \textbf{Il corpus è uno solo.} Le proporzioni fra i tipi di relazione di questo grafo --- 1.030 archi \texttt{CITES} contro 41 \texttt{DEROGATES} e 3 \texttt{INTERPRETS}, con \texttt{REPEALS} e \texttt{REPLACES} assenti --- determinano quanto il ramo giuridico possa contribuire. Un corpus con una fitta trama di abrogazioni e sostituzioni si comporterebbe diversamente, e presumibilmente in favore della struttura, ma questo non è stato misurato.
 
@@ -500,8 +337,8 @@ Il capitolo si chiude dichiarando ciò che le sue misure non stabiliscono.
 
 \section{Sintesi del capitolo}
 
-Il risultato principale è condizionato dalla tipologia della domanda: nelle slice costruite attorno al meccanismo la ricerca arricchita dalla struttura guadagna 27,0 punti di risposte complete, mentre nelle slice non allineate perde 5,0 punti. La media di queste condizioni, con i pesi definiti dal benchmark, produce un vantaggio aggregato di 17,4 punti e un bilancio di 38 combinazioni domanda $\times$ modello guadagnate contro 3 perse. Nella condizione di controllo dei rinvii il guadagno riguarda esclusivamente i commi di supporto: il Primary HIT@10 resta invariato, mentre la copertura supporting aumenta di 30 punti. Il guadagno è presente anche sullo split tenuto da parte; ampliando il cutoff a 14, il bilancio osservato diventa di 42 vittorie e nessuna sconfitta.
+Considerando tutte le 70 domande, la ricerca arricchita dal grafo porta la Complete HIT@10 dal 62,4\% al 79,5\%, con un guadagno di 17,1 punti. Sulle 210 valutazioni ottenute combinando le domande con i tre encoder, il passaggio da S1 a S2 trasforma 39 risultati incompleti in completi e 3 risultati completi in incompleti; nelle restanti 168 valutazioni l'esito non cambia. Il vantaggio riguarda la completezza della selezione, mentre l'MRR diminuisce di 0,4 punti: il grafo recupera più spesso l'intera risposta, ma può modificare l'ordine dei primi risultati.
 
-L'antitesi --- che il contesto incorporato dal late chunking renda trascurabile il contributo marginale della struttura --- è stata verificata mantenendo fisso l'encoder contestuale. Anche in questa condizione S2 supera S1 di 11,9 punti di Complete HIT@10 e di 8,2 punti nella copertura dei commi di supporto. Nel benchmark, quindi, la contestualizzazione intra-articolo non rende ridondante il reranking basato sulle relazioni giuridiche.
+La verifica con encoder contestuale fissato conduce alla stessa conclusione generale: S2 supera S1 di 11,4 punti di Complete HIT@10, di 5,5 punti nella copertura dei commi gold e di 7,8 punti nella copertura dei commi di supporto, a fronte di una diminuzione di 0,5 punti di MRR. Il vantaggio si concentra nelle categorie relazionali e in \texttt{MULTI\_ARTICLE}; \texttt{MULTI\_PARAGRAPH} e \texttt{SEMANTIC\_INDIRECT} rimangono invarianti, mentre \texttt{SEMANTIC\_DIRECT} peggiora. Il \textit{late chunking} e il grafo risultano quindi parzialmente sovrapposti sul contesto intra-articolo, ma non ridondanti rispetto all'insieme delle relazioni rappresentate nel benchmark.
 
-Il confronto fra configurazioni mostra infine un compromesso: quella contestuale conserva una completezza comparabile, ma colloca meno spesso la prima risposta corretta al primo posto. La differenza è maggiore nelle domande che citano testualmente un articolo, risultato coerente con un'attenuazione del segnale locale ma non sufficiente a dimostrarla causalmente. Le conclusioni riguardano il recupero nelle condizioni rappresentate dal benchmark e non costituiscono una stima delle prestazioni su traffico reale.
+Nel complesso, l'esperimento mostra che la struttura può aumentare la completezza del recupero nelle condizioni per cui le relazioni risultano pertinenti, con un costo contenuto ma osservabile sull'ordinamento. Le conclusioni descrivono il comportamento dei meccanismi nelle condizioni rappresentate dal benchmark e non costituiscono una stima delle prestazioni attese su domande reali.
