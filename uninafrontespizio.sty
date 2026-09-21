@@ -274,13 +274,15 @@
                     \myprintlist{\@relatorilist}
                 \fi
                 
-                \vspace{\@relandcorrelsep}
-                \textbf{\@CorrelatoreLabel}\par
-                \ifdefined\@Firme
-                    \printlistwithsignatureline{\@correlatorilist}    
-                \else
-                    \myprintlist{\@correlatorilist}
-                \fi
+                \ifdefempty{\@correlatorilist}{}{%
+                    \vspace{\@relandcorrelsep}
+                    \textbf{\@CorrelatoreLabel}\par
+                    \ifdefined\@Firme
+                        \printlistwithsignatureline{\@correlatorilist}
+                    \else
+                        \myprintlist{\@correlatorilist}
+                    \fi
+                }
             \end{minipage}\hfill%
             \begin{minipage}[t]{.45\textwidth}
                 \large
