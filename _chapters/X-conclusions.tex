@@ -1,10 +1,27 @@
-\newpage\pagestyle{conclusions}
-\unnumberedchapter{Conclusions}
+\newpage
+\pagestyle{conclusions}
+\unnumberedchapter{Conclusioni}
 
-\blindtext
+Il lavoro ha affrontato il problema di rendere interrogabili documenti normativi eterogenei senza perdere la loro organizzazione e i collegamenti tra le disposizioni. A partire dai PDF, la pipeline estrae il testo in Markdown, ne ricostruisce la gerarchia e le relazioni giuridiche mediante LLM e ne memorizza contenuti e metadati nel database a grafo Neo4j. I commi sono l'unità di recupero: ciascuno conserva la propria provenienza documentale, le relazioni strutturali e, per la ricerca, un embedding semantico.
 
-\unnumberedsection{Some section}
-\blindtext
+\unnumberedsection{Risultati e contributi}
 
-\unnumberedsection{Some other section}
-\blindtext
+La pipeline combina estrazione deterministica dei PDF strutturati e una strategia di triage per i documenti complessi o acquisiti come scansioni. L'elaborazione pagina per pagina e l'impiego di RapidOCR consentono di contenere il consumo di memoria nei casi che richiedono il riconoscimento ottico. La successiva strutturazione tramite modello linguistico separa la ricostruzione della gerarchia dall'estrazione dei collegamenti giuridici; il grafo rappresenta così enti, atti, sezioni e commi, insieme alle relazioni di contenimento, sequenza e rinvio.
+
+Sul corpus utilizzato, l'ingestion ha popolato Neo4j con 8.535 nodi e 14.201 relazioni in 50,29 secondi. I nodi \texttt{Paragraph} sono 6.396. Tra le relazioni giuridiche prevalgono le citazioni (1.030 archi); sono presenti 41 deroghe e 3 interpretazioni, mentre non risultano abrogazioni o sostituzioni. Questi dati descrivono la base sperimentale e mostrano anche che le conclusioni sul ramo giuridico dipendono dalla composizione effettiva del corpus.
+
+Il confronto tra ricerca vettoriale pura (S1) e ricerca arricchita dal grafo (S2) è stato condotto su 70 domande diagnostiche e tre modelli di embedding. Mediando le metriche prima per encoder e poi tra i tre encoder, S2 porta la Complete HIT@10 dal 62,4\% al 79,5\% e la Complete HIT@5 dal 47,1\% al 66,2\%; la copertura dei commi di supporto a Top-10 passa dal 69,8\% all'82,0\%. Nel confronto appaiato delle 210 valutazioni domanda-modello, 39 risultati incompleti diventano completi e 3 completi diventano incompleti. Il miglioramento della completezza si accompagna a una lieve riduzione dell'MRR@10, pari a 0,4 punti percentuali. L'effetto è coerente nel segno per tutti e tre gli encoder, sebbene di ampiezza diversa.
+
+La scomposizione per categoria chiarisce dove si concentra il beneficio. S2 migliora soprattutto le domande che richiedono disposizioni collegate o distribuite tra più articoli: per esempio, la Complete HIT@10 cresce di 36,7 punti nella categoria \texttt{RELATIONAL\_CITES\_LOW\_SIMILARITY} e di 40 punti in \texttt{MULTI\_ARTICLE}. Anche i rinvii ad alta similarità migliorano, mentre le domande semantiche indirette restano invariate e quelle dirette perdono 10 punti. La struttura può quindi completare una risposta recuperando commi di supporto, ma il riordinamento comporta un costo quando la ricerca semantica ha già individuato la risposta diretta.
+
+Il contributo resta osservabile anche con \texttt{pplx-embed-context-v1-0.6b}: a encoder fissato, S2 aumenta la Complete HIT@10 di 11,4 punti e la copertura dei commi di supporto di 7,8 punti, con una riduzione dell'MRR di 0,5 punti. Sulla categoria \texttt{MULTI\_PARAGRAPH}, invece, S1 e S2 pareggiano. Nel benchmark, questi risultati sono compatibili con una parziale sovrapposizione tra la contestualizzazione intra-articolo del late chunking e le relazioni esplicite, che comunque mantengono utilità quando il collegamento oltrepassa il contesto del singolo articolo.
+
+Il costo operativo misurato per S2 è contenuto in valore assoluto: la latenza mediana passa da 16 a 18 ms e il p95 da 20 a 35 ms, escludendo la codifica della domanda. Il costo di ranking è invece visibile nelle metriche: la struttura aumenta la completezza complessiva ma non migliora l'ordinamento della prima risposta corretta. La testa riservata ai risultati vettoriali riduce tale effetto; disattivandola, l'MRR peggiora di oltre cinque punti a copertura invariata.
+
+\unnumberedsection{Limiti e sviluppi futuri}
+
+I risultati vanno interpretati come una valutazione diagnostica dei meccanismi, non come una stima delle prestazioni su domande reali. Il benchmark è composto da 70 quesiti costruiti in sette categorie; il corpus è unico e presenta poche relazioni diverse dalle citazioni. Inoltre, l'esperimento misura il recupero e il suo ordinamento, non la correttezza delle risposte generate a valle.
+
+Un seguito naturale consiste nell'integrare un LLM generativo che, a partire dai commi recuperati, formuli una risposta in linguaggio naturale e indichi le disposizioni normative utilizzate. La valutazione potrà così estendersi dal recupero alla risposta completa, verificandone correttezza, completezza e coerenza dei riferimenti con le fonti. Sarà inoltre utile ampliare il corpus con ulteriori atti normativi, includendo una maggiore varietà di abrogazioni, deroghe, sostituzioni e interpretazioni, e costruire un benchmark più ampio e indipendente con domande provenienti da casi d'uso reali. Ciò permetterebbe di stimare meglio quanto spesso la struttura sia utile e quanto i risultati si generalizzino a documenti e richieste diversi da quelli considerati in questa tesi.
+
+Nel perimetro sperimentato, il Knowledge Graph non sostituisce il retrieval vettoriale, ma aggiunge un segnale utile a recuperare e promuovere disposizioni collegate, soprattutto quando la risposta è distribuita o richiede contesto normativo ulteriore. La tesi fornisce quindi, entro i limiti della valutazione svolta, evidenza a favore dell'integrazione tra similarità semantica e relazioni esplicite.
