@@ -62,11 +62,7 @@ Il cuore intelligente del sistema risiede nei modelli di linguaggio e di embeddi
 \end{itemize}
 
 \section{Deployment e Containerizzazione}
-\begin{itemize}
-    \item \textbf{Docker}: L'intero ecosistema è stato modularizzato attraverso lo sviluppo di container isolati e specifici per ciascun componente della pipeline. Questa scelta architetturale è stata dettata da esigenze sia tecniche che operative:
-    \begin{itemize}
-        \item \textbf{Isolamento delle dipendenze:} Ogni fase della pipeline (estrazione, strutturazione, ingestion, embedding) presenta dipendenze software potenzialmente conflittuali. Docker ha permesso di incapsulare ciascuna in un ambiente dedicato, eliminando i conflitti di versione tra librerie e garantendo la riproducibilità dell'ambiente di esecuzione su qualsiasi macchina.
-        \item \textbf{Modularità e manutenibilità:} La separazione in container indipendenti ha permesso di sviluppare, testare e aggiornare ciascun modulo della pipeline in isolamento, semplificando la manutenzione.
-        \item \textbf{Scalabilità orizzontale:} L'architettura a container costituisce un prerequisito naturale per futuri scenari di deployment distribuito in cui diverse istanze della pipeline possano operare concorrentemente su lotti distinti di documenti.
-    \end{itemize}
-\end{itemize}
+
+Per la containerizzazione dei componenti è stato adottato \textbf{Docker}. La scelta è motivata principalmente dalla necessità di isolare le dipendenze delle diverse fasi della pipeline, che impiegano librerie e runtime eterogenei, e di garantire la riproducibilità degli ambienti di esecuzione.
+
+L'utilizzo di container consente inoltre di sviluppare, testare e aggiornare i singoli componenti in modo indipendente, semplificando la manutenzione del sistema.

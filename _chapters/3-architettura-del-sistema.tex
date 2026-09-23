@@ -103,6 +103,8 @@ Il grafo non sostituisce quindi la ricerca semantica, ma introduce segnali ulter
 
 \section{Deployment e comunicazione tra i componenti}
 
-I moduli principali sono eseguiti in container Docker distinti. Tale organizzazione isola dipendenze eterogenee, quali runtime Java, librerie Python, motori OCR e componenti di elaborazione vettoriale, e permette di aggiornare una fase senza modificare l'ambiente delle altre.
+Come anticipato nel Capitolo~\ref{chap:second}, i principali componenti del sistema sono eseguiti in container Docker distinti. La suddivisione segue le responsabilità della pipeline, separando i componenti dedicati all'estrazione, alla strutturazione, alla persistenza e alla generazione degli embedding.
 
-La comunicazione tra le fasi offline avviene attraverso gli artefatti prodotti dalla pipeline e mediante il database condiviso. Markdown e JSON costituiscono punti di disaccoppiamento espliciti, mentre Neo4j rappresenta l'interfaccia persistente tra indicizzazione e interrogazione. La separazione in container non implica necessariamente un'esecuzione distribuita, ma predispone il sistema a elaborare in futuro lotti distinti di documenti mediante istanze indipendenti.
+La comunicazione tra le fasi offline avviene principalmente attraverso gli artefatti prodotti dalla pipeline e mediante il database condiviso. Markdown e JSON costituiscono punti di disaccoppiamento espliciti tra le diverse elaborazioni, mentre Neo4j rappresenta l'interfaccia persistente tra la fase di indicizzazione e quella di interrogazione.
+
+I container costituiscono pertanto i confini di esecuzione dei diversi componenti, mentre lo scambio degli artefatti intermedi e l'accesso al database permettono di comporre tali componenti nel flusso complessivo mostrato nella Figura~\ref{fig:architettura-software}.
